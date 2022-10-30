@@ -1,20 +1,15 @@
 _RES = [];
 _request_type_id = 6834376740098549468; // Записать в Школу лидерства - Заместитель Директора магазина
-_last_clmn_num = 15;
+//_last_clmn_num = 15;
 _webinars = [
-  {name: "Вебинар \"Искусство приводить дела в порядок\"",
-  id:15},
-  {name: "Вебинар \"Эффективная коммуникация\"",
-  id: 18},
-  {name: "Вебинар \"Обратная связь\"",
-  id: 19},
-  {name: "Мастер-класс \"Эффективные совещания\"",
-  id: 22},
-  {name: "Вебинар \"Эмоциональный интеллект\"",
-  id: 24},
-  {name: "Вебинар \"Управление изменениями\"",
-  id: 25}
-]
+  {name: "Вебинар \"Искусство приводить дела в порядок\"", id:15},
+  {name: "Вебинар \"Эффективная коммуникация\"", id: 18},
+  {name: "Вебинар \"Обратная связь\"", id: 19},
+  {name: "Мастер-класс \"Эффективные совещания\"", id: 22},
+  {name: "Вебинар \"Эмоциональный интеллект\"", id: 24},
+  {name: "Вебинар \"Управление изменениями\"", id: 25}
+  ]
+
 _closeDateBeg = {PARAM2} ? "and $elem/close_date >= date('" + StrDate({PARAM2}, false) + "')" : "";
 _closeDateFin = {PARAM3} ? "and $elem/close_date <= date('" + StrDate({PARAM3}, false) + "')" : "";
 
@@ -27,34 +22,15 @@ _searchParam = OptInt({PARAM1});
 if (_searchParam != undefined) {
   _typical_program = ArrayOptFirstElem(XQuery("for $elem in typical_development_programs where $elem/id="+_searchParam+"  return $elem"));
   
-  // var i = 0;
-  // function getWebinar(_last_clmn_num) {
-  //   _webinar = _webinars[i];
-  //   _cc = columns[_last_clmn_num];
-  //   _cc.flag_formula = true;
-  //   _cc.column_title = "" + _webinar;
-  //   _cc.column_value = "ListElem.entry_" + _last_clmn_num + "";
-  //   _cc.datatype = "string";
-  //   _event_obj = {};
-  //   _event_obj.object_type = "event";
-  //   _event_obj.object_id = _webinar;
-  //   _event_obj.entry_name = "entry_" + _last_clmn_num + "";
-  //   _events.push(_event_obj);
-  //   _last_clmn_num++;
-  // }
-
-
   if (_typical_program != undefined) {
     _typical_program_id = _typical_program.id;
     _typDevProgDoc = OpenDoc(UrlFromDocID(_typical_program_id));
     _typDevProgDoc_te = _typDevProgDoc.TopElem;
     _tasks = _typDevProgDoc_te.tasks;
     
+    ids = [16, 17, 20, 21, 23, 26, 27, 28, 29, 30,]
     for (j = 0; j < ArrayCount(_tasks); j++) {
-      if (_last_clmn_num == 15) {
-        break;
-      }
-
+      _last_clmn_num = ids[j]
       _task = _tasks[j];
       _cc = columns[_last_clmn_num];
       _cc.flag_formula = true;
@@ -67,7 +43,7 @@ if (_searchParam != undefined) {
       _event_obj.object_id = _task.object_id;
       _event_obj.entry_name = "entry_" + _last_clmn_num + "";
       _events.push(_event_obj);
-      _last_clmn_num++;
+//      _last_clmn_num++;
     }
   }
 } else 
@@ -77,17 +53,17 @@ if (_searchParam != undefined) {
 
 for (i = 0; i < ArrayCount(_webinars); i++) {
   _webinar = _webinars[i];
-  _cc = columns[_last_clmn_num];
+  _cc = columns[_webinar.id];
   _cc.flag_formula = true;
-  _cc.column_title = "" + _webinar;
-  _cc.column_value = "ListElem.entry_" + _last_clmn_num + "";
+  _cc.column_title = "" + _webinar.name;
+  _cc.column_value = "ListElem.entry_" + _webinar.id + "";
   _cc.datatype = "string";
   _event_obj = {};
   _event_obj.object_type = "event";
-  _event_obj.object_id = _webinar;
-  _event_obj.entry_name = "entry_" + _last_clmn_num + "";
+  _event_obj.object_id = _webinar.name;
+  _event_obj.entry_name = "entry_" + _webinar.id + "";
   _events.push(_event_obj);
-  _last_clmn_num++;
+//  _last_clmn_num++;
 }
 
 _uniquePerson = [];
