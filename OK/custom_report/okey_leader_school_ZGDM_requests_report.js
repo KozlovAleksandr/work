@@ -1,7 +1,7 @@
 _RES = [];
 _request_type_id = 6834376740098549468; // Записать в Школу лидерства - Заместитель Директора магазина
-_last_clmn_num = 12;
-_webinars = ["вебинар Обратная связь","вебинар Проведение собеседований","вебинар Проведение проблемных совещаний"];
+_last_clmn_num = 11;
+//_webinars = ["вебинар Обратная связь","вебинар Проведение собеседований","вебинар Проведение проблемных совещаний"];
 
 _closeDateBeg = {PARAM2} ? "and $elem/close_date >= date('" + StrDate({PARAM2}, false) + "')" : "";
 _closeDateFin = {PARAM3} ? "and $elem/close_date <= date('" + StrDate({PARAM3}, false) + "')" : "";
@@ -23,22 +23,23 @@ if (_searchParam != undefined) {
     
     for (j = 0; j < ArrayCount(_tasks); j++) {
       _task = _tasks[j];
-      _cc = columns[_last_clmn_num];
-      _cc.flag_formula = true;
-      _cc.column_title = "" + _task.name;
-      _cc.column_value = "ListElem.entry_" + _last_clmn_num + "";
-      _cc.datatype = "string";
+      _task_number = _task.custom_elems.ObtainChildByKey("f_gepj").value;
+      
+      if (_task_number != 0) {
 
-      _event_obj = {};
-      _event_obj.object_type = _task.object_type;
-      _event_obj.object_id = _task.object_id;
-      _event_obj.entry_name = "entry_" + _last_clmn_num + "";
-      _events.push(_event_obj);
+        _podition_number = _last_clmn_num + OptInt(_task_number);
 
-      if (_last_clmn_num >= 21 && _last_clmn_num <= 23) {
-        _last_clmn_num = 25
-      } else {
-        _last_clmn_num++;
+        _cc = columns[_podition_number];
+        _cc.flag_formula = true;
+        _cc.column_title = "" + _task.name;
+        _cc.column_value = "ListElem.entry_" + _podition_number + "";
+        _cc.datatype = "string";
+
+        _event_obj = {};
+        _event_obj.object_type = _task.object_type;
+        _event_obj.object_id = _task.object_id;
+        _event_obj.entry_name = "entry_" + _podition_number + "";
+        _events.push(_event_obj);
       }
     }
   }
@@ -47,25 +48,25 @@ if (_searchParam != undefined) {
   throw "Не указан ID типовой программы развития";
 }
 
-for (i = 0; i < ArrayCount(_webinars); i++) {
-  _webinar = _webinars[i];
+// for (i = 0; i < ArrayCount(_webinars); i++) {
+//   _webinar = _webinars[i];
   
-  _cc = columns[_last_clmn_num];
-  _cc.flag_formula = true;
-  _cc.column_title = "" + _webinar;
-  _cc.column_value = "ListElem.entry_" + _last_clmn_num + "";
-  _cc.datatype = "string";
-  _event_obj = {};
-  _event_obj.object_type = "event";
-  _event_obj.object_id = _webinar;
-  _event_obj.entry_name = "entry_" + _last_clmn_num + "";
-  _events.push(_event_obj);
-  if (_last_clmn_num >= 21 && _last_clmn_num <= 23) {
-    _last_clmn_num = 25
-  } else {
-    _last_clmn_num++;
-  }
-}
+//   _cc = columns[_last_clmn_num];
+//   _cc.flag_formula = true;
+//   _cc.column_title = "" + _webinar;
+//   _cc.column_value = "ListElem.entry_" + _last_clmn_num + "";
+//   _cc.datatype = "string";
+//   _event_obj = {};
+//   _event_obj.object_type = "event";
+//   _event_obj.object_id = _webinar;
+//   _event_obj.entry_name = "entry_" + _last_clmn_num + "";
+//   _events.push(_event_obj);
+//   if (_last_clmn_num >= 21 && _last_clmn_num <= 23) {
+//     _last_clmn_num = 25
+//   } else {
+//     _last_clmn_num++;
+//   }
+// }
 
 _uniquePerson = [];
 _uniquePersons = ArraySelectDistinct(_requests, "person_id");
@@ -126,25 +127,27 @@ for (_request in _requests) {
     _obj.person_subdivision_name = _request_te.person_subdivision_name;
 
     for (ev in _events) {
-		if (ev.object_type != 'event') {
-		    _fld_result = '';
-		    _search_catalog = '';
-		    if (ev.object_type == 'assessment') {
-                _search_catalog = 'test_';
-            }
-		  
-		    searchActiveResults = "for $elem in active_"+_search_catalog+"learnings where $elem/"+ev.object_type+"_id=" +ev.object_id +" and $elem/person_id=" +_request.person_id +" return $elem";
-		    searchFinishedResults = "for $elem in "+_search_catalog+"learnings where $elem/"+ev.object_type+"_id=" +ev.object_id + " and $elem/person_id=" + _request.person_id +" return $elem";
-		    _learning_results = ArrayUnion(XQuery(searchActiveResults), XQuery(searchFinishedResults));
+      if (ev.object_type != 'event') {
+        _fld_result = '';
+        _search_catalog = '';
+        if (ev.object_type == 'assessment') {
+          _search_catalog = 'test_';
+        }
+        
+        searchActiveResults = "for $elem in active_"+_search_catalog+"learnings where $elem/"+ev.object_type+"_id=" +ev.object_id +" and $elem/person_id=" +_request.person_id +" return $elem";
+        searchFinishedResults = "for $elem in "+_search_catalog+"learnings where $elem/"+ev.object_type+"_id=" +ev.object_id + " and $elem/person_id=" + _request.person_id +" return $elem";
+        _learning_results = ArrayUnion(XQuery(searchActiveResults), XQuery(searchFinishedResults));
 
-            _topScoreElem = ArrayOptMax(_learning_results, "This.score");
-            _topScoreElem != undefined ? _obj[ev.entry_name] = _topScoreElem.score : _obj[ev.entry_name] = "";
-
-		} else {
-			_event_res = ArrayOptFirstElem(XQuery("for $elem in event_results where $elem/event_name='"+ev.object_id+"' and $elem/person_id="+_request_te.person_id+" and $elem/is_assist=true() return $elem"));
-			_obj[ev.entry_name] = _event_res != undefined ? "+" : "-";
-		}
-
+        _topScoreElem = ArrayOptMax(_learning_results, "This.score");
+        if (ev.object_type == 'assessment') {
+          _topScoreElem != undefined ? _obj[ev.entry_name] = _topScoreElem.score * 100 / _maxScore + "%" : _obj[ev.entry_name] = "";
+        } else {
+          _topScoreElem != undefined ? _obj[ev.entry_name] = _topScoreElem.score : _obj[ev.entry_name] = "";
+        }
+      } else {
+        _event_res = ArrayOptFirstElem(XQuery("for $elem in event_results where $elem/event_name='"+ev.object_id+"' and $elem/person_id="+_request_te.person_id+" and $elem/is_assist=true() return $elem"));
+        _obj[ev.entry_name] = _event_res != undefined ? "+" : "-";
+      }
     }
     _RES.push(_obj);
   }
