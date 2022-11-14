@@ -1,0 +1,1172 @@
+<%
+    DEPARTMENT_IDS =[6384306098143632193, 6384306098240579301, 6384306098247269493, 6384306098257277388, 6384306098267318051, 6384306098290640796, 6384306120711865737, 6384306120718490393, 6384306120725115050, 6384306120738604488, 6384306120751853801, 6384306125157323178, 6384306125160739185, 6384306098233747288];
+
+function curUserIsHighManager(line) {
+    return StrContains(line.highmanager_id, curPersonID);
+}
+
+
+TOOLTIP_FOR_FUNCMANAGER = tools_web.get_web_param(curParams, "tooltip_for_funcmanager", "", true);
+TOOLTIP_FOR_HIGHMANAGER = tools_web.get_web_param(curParams, "tooltip_for_highmanager", "", true);
+TOOLTIP_FOR_ADMMANAGER = tools_web.get_web_param(curParams, "tooltip_for_admmanager", "", true);
+
+curUserIsReportAdmin = isCurUserReportAdmin();
+
+reportFilePath = "";
+showTable = false;
+
+showProcFilter = true;
+
+showCollForFuncmanager = false;
+showCollForHighmanager = false;
+showCollForAdmmanager = false;
+showDismissed = false;
+showDone = false;
+
+
+assessmentAppraiseID = getQueryStringValInt("proc_id");
+
+if (assessmentAppraiseID > 0)
+    showProcFilter = false;
+else
+    assessmentAppraiseID = getFormValInt("proc_id");
+
+formSubmitted = getFormValBool("submitted");
+
+
+assessmentAppraiseName = "";
+curUserHasManyFaces = false;
+
+if (assessmentAppraiseID > 0) {
+    curPersonID = curUserID;
+    curPerson = curUser;
+
+    teAssessmentAppraise = OpenDoc(UrlFromDocID(assessmentAppraiseID)).TopElem;
+
+    curUserFaces = ArraySelect(teAssessmentAppraise.impersonate_persons, "This.impersonator_id == curUserID");
+    curUserHasManyFaces = (ArrayCount(curUserFaces) > 0);
+
+    if (curUserHasManyFaces) {
+        filterFacePersonID = getFormValInt("face_person_id");
+
+        if (filterFacePersonID > 0 && ArrayOptFind(curUserFaces, "This.face_person_id == filterFacePersonID") != undefined) {
+            curPersonID = filterFacePersonID;
+            curPerson = OpenDoc(UrlFromDocID(curPersonID)).TopElem;
+        }
+    }
+}
+
+
+
+action = getFormValText("action");
+
+if (action == "save" || action == "confirm") {
+    jsonData = UrlDecode(getFormValText("data"));
+    //alert("jsonData: "+jsonData)
+    data = tools.read_object(jsonData);
+
+    if (action == "confirm") {
+        docWorkflow = tools.get_doc_by_key("workflow", "code", "sns1227_appraise_workflow");
+    }
+
+    for (line in data) {
+        try {
+            docPlan = OpenDoc(UrlFromDocID(Int(line.plan_id)));
+
+            docPlan.TopElem.custom_elems.ObtainChildByKey("highmanager_advance_decision").value = line.advance_decision;
+            docPlan.TopElem.custom_elems.ObtainChildByKey("highmanager_comment").value = line.comment;
+
+            if (action == "confirm") {
+                if (line.advance_decision == "Утвердить") {
+
+                    ApplyWokrflowAction("confirm_FinApp_by_highmanager", docWorkflow, docPlan)
+                }
+                else if (line.advance_decision == "Отклонить") {
+                    ApplyWokrflowAction("decline_FinApp_by_highmanager", docWorkflow, docPlan)
+                }
+            }
+
+            docPlan.Save();
+        }
+        catch (e) {
+            alert(e);
+        }
+    }
+
+    //Sleep(1000);
+}
+
+generalMarks = [
+    //{val: 5, name: "A+"},
+    { val: 4, name: "A+" },
+    { val: 3, name: "A" },
+    { val: 2, name: "B" },
+    { val: 1, name: "C" }
+];
+
+
+teWorkflow = undefined;
+
+sortBy = getFormValText("sort_by", "person_fullname");
+sortDirection = getFormValText("sort_direction", "asc");
+
+if (assessmentAppraiseID > 0) {
+    procArchived = teAssessmentAppraise.status == "1";
+
+    subdivIDsOfBoss = getSubdivIDsOfCurBoss();
+
+    personIDs = getFormValIntArray("person_ids", ",");
+    funcSubdivIDs = getFormValIntArray("func_subdiv_ids", ",");
+    workflowState = getFormValText("workflow_state");
+    generalMark = getFormValInt("general_mark");
+
+    //if (workflowState == "" && !procArchived)
+    //workflowState = "FinApp_confirm_by_highboss";
+
+    if (workflowState == "no")
+        workflowState = "";
+
+    showCollForFuncmanager = (!formSubmitted && procArchived) || formCheckboxChecked("show_coll_for_funcmanager");
+    showCollForHighmanager = !formSubmitted || formCheckboxChecked("show_coll_for_highmanager");
+    showCollForAdmmanager = (!formSubmitted && procArchived) || formCheckboxChecked("show_coll_for_admmanager");
+    showDismissed = formCheckboxChecked("show_dismissed");
+    showDone = (!formSubmitted && procArchived) || formCheckboxChecked("show_done");
+
+    SQLFilters = [];
+
+    //if (ArrayCount(personIDs) > 0)
+    //	SQLFilters.push("ass_plans.person_id IN ("+personIDs.join(",")+")");
+
+    if (ArrayCount(funcSubdivIDs) > 0)
+        SQLFilters.push("dtcp_func_subdiv_id.value('value', 'bigint') IN (" + funcSubdivIDs.join(",") + ")");
+
+    //if (workflowState != "")
+    //	SQLFilters.push("ass_plans.workflow_state = '"+workflowState+"'");
+
+
+    SQLFiltersStr = "";
+
+    if (ArrayCount(SQLFilters) > 0)
+        SQLFiltersStr = " AND " + SQLFilters.join(" AND ");
+    var time1 = GetCurTicks()
+
+    SQLString = "
+		DECLARE @assessment_appraise_id BIGINT;
+		SET @assessment_appraise_id = "+assessmentAppraiseID+";
+
+		DECLARE @cur_user_id BIGINT;
+		SET @cur_user_id = "+curPersonID+";
+		
+		DECLARE @is_report_admin BIT;
+		SET @is_report_admin = "+(curUserIsReportAdmin ? "1" : "0")+";
+		
+		DECLARE @show_coll_for_funcmanager BIT;
+		SET @show_coll_for_funcmanager = "+(showCollForFuncmanager ? "1" : "0")+";
+		
+		DECLARE @show_coll_for_highmanager BIT;
+		SET @show_coll_for_highmanager = "+(showCollForHighmanager ? "1" : "0")+";
+		
+		DECLARE @show_coll_for_admmanager BIT;
+		SET @show_coll_for_admmanager = "+(showCollForAdmmanager ? "1" : "0")+";
+		
+		DECLARE @show_dismissed BIT;
+		SET @show_dismissed = "+(showDismissed ? "1" : "0")+";
+
+
+		DECLARE @report_plans TABLE(
+        ass_plan_id BIGINT,
+        type VARCHAR(20)
+    );
+
+
+		INSERT INTO @report_plans(ass_plan_id, type)
+    SELECT
+    ass_plans.id,
+        'app_expert'
+		FROM dbo.assessment_plans AS ass_plans
+			JOIN dbo.assessment_plan AS ass_plan ON ass_plan.id = ass_plans.id
+				CROSS APPLY ass_plan.data.nodes('/assessment_plan/custom_experts') AS Z1(xml_custom_experts)
+    WHERE
+    ass_plans.assessment_appraise_id = @assessment_appraise_id
+    AND
+        (
+            (@show_coll_for_highmanager = 1 AND @show_coll_for_admmanager = 1)
+    OR
+        (@show_coll_for_highmanager = 1 AND xml_custom_experts.query('count(for $ce in custom_expert where $ce/person_type = 1 and $ce/person_id = (\""+curPersonID+"\") return $ce/person_id)').value('.', 'int') > 0)
+    OR
+        (@show_coll_for_admmanager = 1 AND xml_custom_experts.query('count(for $ce in custom_expert where $ce/person_type = 2 and $ce/person_id = (\""+curPersonID+"\") return $ce/person_id)').value('.', 'int') > 0)
+			)
+			AND ass_plans.custom_experts LIKE '%' + CAST(@cur_user_id AS varchar(max)) +'%'
+    "+(workflowState != "" ? "
+			AND ass_plans.workflow_state = '"+workflowState+"'
+    " : "") +"
+    "+(!showDone ? "
+			AND ass_plans.workflow_state != 'done'
+    " : "") +"
+    "+(ArrayCount(personIDs) > 0 ? "
+			AND ass_plans.person_id IN("+personIDs.join(", ")+")
+    " : "") +"
+
+
+
+		INSERT INTO @report_plans(ass_plan_id, type)
+    SELECT
+    ass_plans.id,
+        'app_boss'
+		FROM dbo.assessment_plans AS ass_plans
+    WHERE
+    ass_plans.assessment_appraise_id = @assessment_appraise_id
+			AND @show_coll_for_funcmanager = 1
+			AND boss_id = @cur_user_id
+			AND ass_plans.id NOT IN(SELECT ass_plan_id FROM @report_plans)
+    "+(workflowState != "" ? "
+			AND ass_plans.workflow_state = '"+workflowState+"'
+    " : "") +"
+    "+(!showDone ? "
+			AND ass_plans.workflow_state != 'done'
+    " : "") +"
+    "+(ArrayCount(personIDs) > 0 ? "
+			AND ass_plans.person_id IN("+personIDs.join(", ")+")
+    " : "") +"
+
+
+		/* Отключаем по желанию клиента
+		INSERT INTO @report_plans (ass_plan_id, type)
+		SELECT
+			ass_plans.id,
+			'subdiv_boss'
+		FROM dbo.assessment_plans AS ass_plans
+			JOIN dbo.collaborators AS colls ON colls.id = ass_plans.person_id
+		WHERE
+			ass_plans.assessment_appraise_id = @assessment_appraise_id
+			AND ass_plans.id NOT IN (SELECT ass_plan_id FROM @report_plans)
+			AND colls.position_parent_id IN ("+subdivIDsOfBoss.join(",")+")
+		*/
+		
+		INSERT INTO @report_plans(ass_plan_id, type)
+    SELECT
+    ass_plans.id,
+        'report_admin'
+		FROM dbo.assessment_plans AS ass_plans
+    WHERE
+    ass_plans.assessment_appraise_id = @assessment_appraise_id
+			AND @is_report_admin = 1
+			AND @show_coll_for_funcmanager = 0
+			AND @show_coll_for_highmanager = 0
+			AND @show_coll_for_admmanager = 0
+			AND ass_plans.id NOT IN(SELECT ass_plan_id FROM @report_plans)
+    "+(workflowState != "" ? "
+			AND ass_plans.workflow_state = '"+workflowState+"'
+    " : "") +"
+    "+(!showDone ? "
+			AND ass_plans.workflow_state != 'done'
+    " : "") +"
+    "+(ArrayCount(personIDs) > 0 ? "
+			AND ass_plans.person_id IN("+personIDs.join(", ")+")
+    " : "") +"
+
+
+    SELECT
+    report_plans.type AS type,
+        ass_plans.assessment_appraise_id AS assessment_appraise_id,
+            ass_plans.id AS plan_id,
+                pa_comp.id AS pa_comp_id,
+                    pa_act.id AS pa_act_id,
+                        colls.fullname AS person_fullname,
+                            colls.position_name AS person_position,
+                                colls.position_parent_name AS person_subdiv,
+                                    dtcp_func_subdiv_name.value('value[1]', 'varchar(max)') AS person_func_subdiv,
+                                        boss_colls.fullname AS boss_fullname,
+                                            xml_custom_experts.query('for $ce in custom_expert where $ce/person_type = 1 return $ce/person_id').value('.', 'varchar(max)') AS highmanager_id,
+                                                'later' AS highmanager_fullname,
+                                                    xml_custom_experts.query('for $ce in custom_expert where $ce/person_type = 2 return $ce/person_id').value('.', 'varchar(max)') AS admmanager_id,
+                                                        'later' AS admmanager_fullname,
+                                                            ass_plans.workflow_state AS workflow_state_code,
+                                                                'later' AS workflow_state_name,
+                                                                    highmanager_advance_decision.value('value[1]', 'varchar(max)') AS advance_decision,
+                                                                        is_ready_for_promotion.value('value[1]', 'BIT') AS is_ready_for_promotion,
+                                                                            ass_plans.integral_mark AS general_mark,
+                                                                                pa_comp.overall AS comp_mark,
+                                                                                    competences.value('count(competence)', 'int') AS competences_num,
+                                                                                        pa_act.overall AS act_mark,
+                                                                                            adm_mark.value('value[1]', 'varchar(max)') AS adm_mark,
+                                                                                                colls.is_dismiss AS person_is_dismiss,
+                                                                                                    highmanager_comment.value('value[1]', 'varchar(max)') AS comment,
+                                                                                                        0 AS editable
+		FROM @report_plans AS report_plans
+			JOIN dbo.assessment_plans AS ass_plans ON ass_plans.id = report_plans.ass_plan_id
+				JOIN dbo.assessment_plan AS ass_plan ON ass_plan.id = ass_plans.id
+					CROSS APPLY ass_plan.data.nodes('/assessment_plan/custom_experts') AS A1(xml_custom_experts)
+					OUTER APPLY ass_plan.data.nodes('/assessment_plan/custom_elems/custom_elem[name=\"highmanager_comment\"]') AS A2(highmanager_comment)
+					OUTER APPLY ass_plan.data.nodes('/assessment_plan/custom_elems/custom_elem[name=\"highmanager_advance_decision\"]') AS A3(highmanager_advance_decision)
+					OUTER APPLY ass_plan.data.nodes('/assessment_plan/custom_elems/custom_elem[name=\"collIsReadyForPromotion\"]') AS A6(is_ready_for_promotion)
+					OUTER APPLY ass_plan.data.nodes('/assessment_plan/custom_elems/custom_elem[name=\"dtcp_func_subdiv_id\"]') AS CD17(dtcp_func_subdiv_id)
+					OUTER APPLY ass_plan.data.nodes('/assessment_plan/custom_elems/custom_elem[name=\"dtcp_func_subdiv_name\"]') AS CD18(dtcp_func_subdiv_name)
+			JOIN dbo.collaborators AS colls ON colls.id = ass_plans.person_id
+			left JOIN dbo.collaborators AS boss_colls ON boss_colls.id = ass_plans.boss_id
+			JOIN dbo.pas AS pa_comp ON
+    pa_comp.assessment_appraise_id = ass_plans.assessment_appraise_id
+				AND pa_comp.person_id = ass_plans.person_id
+				AND pa_comp.assessment_appraise_type = 'competence_appraisal'
+					JOIN dbo.pa AS pa_comp_xml ON pa_comp_xml.id = pa_comp.id
+						OUTER APPLY pa_comp_xml.data.nodes('/pa/competences') AS A5(competences)
+			JOIN dbo.pas AS pa_act ON
+    pa_act.assessment_appraise_id = ass_plans.assessment_appraise_id
+				AND pa_act.person_id = ass_plans.person_id
+				AND pa_act.assessment_appraise_type = 'activity_appraisal'
+			JOIN dbo.pa AS pa_act_xml ON pa_act_xml.id = pa_act.id
+				OUTER APPLY pa_act_xml.data.nodes('/pa/custom_elems/custom_elem[name=\"adm_mark\"]') AS A9(adm_mark)
+    WHERE
+        (@show_dismissed = 1 OR CAST(colls.is_dismiss AS BIT) = 0)
+    "+SQLFiltersStr+"
+    ";
+
+    //out("<pre>"+SQLString+"</pre>");
+
+    result = ArraySelectAll(XQuery("sql: " + SQLString));
+
+    var time2 = GetCurTicks();
+    //alert("check_time " + (OptInt(time2)-OptInt(time1)) )
+    teWorkflow = OpenDoc(UrlFromDocID(teAssessmentAppraise.workflow_id)).TopElem;
+
+    assessmentAppraiseName = teAssessmentAppraise.name;
+
+    _is_new_app = false;
+
+    if (OptDate(teAssessmentAppraise.start_date) > OptDate("01.01.2021"))
+        _is_new_app = true;
+
+
+    //out(ArrayCount(result));
+
+    curUserCanEdit = false;
+
+    for (line in result) {
+        line.highmanager_fullname = getCollFullnames(line.highmanager_id).names;
+        line.admmanager_fullname = getCollFullnames(line.admmanager_id).names;
+
+        wfState = ArrayOptFind(teWorkflow.states, "This.code == line.workflow_state_code")
+        if (wfState != undefined)
+            line.workflow_state_name = wfState.name;
+
+        if (curUserIsHighManager(line) && line.workflow_state_code == "FinApp_confirm_by_highboss") {
+            line.editable = 1;
+            curUserCanEdit = true;
+        }
+
+        if (line.workflow_state_code != "FinApp_endorse_by_all" && line.workflow_state_code != "done") {
+            _act_mark = line.act_mark;
+            //if (_is_new_app && OptInt(line.act_mark,0) > 2)
+            //_act_mark += 2;
+
+            _gen_mark = OptInt(line.general_mark) != undefined ? OptInt(line.general_mark) : countGeneralMarkByArgs(_act_mark, line.comp_mark, (line.competences_num > 0), line.is_ready_for_promotion, _is_new_app);
+            line.general_mark = _gen_mark;
+        }
+
+        if (!StrBegins(line.workflow_state_code, "FinApp") && line.workflow_state_code != "done") {
+            line.act_mark = "";
+            line.general_mark = "";
+        }
+    }
+
+    if (generalMark > 0)
+        result = ArraySelect(result, "This.general_mark == generalMark");
+
+    sortDirectionSign = sortDirection == "asc" ? "+" : "-";
+
+    result = ArraySort(result, sortBy, sortDirectionSign);
+    //alert(EncodeJson(result))
+    showTable = true;
+}
+
+isAdminManager = ArrayOptFirstElem(XQuery("sql:SELECT * FROM func_managers where func_managers.catalog = 'collaborator' and boss_type_id = 6361652449336780379 and person_id = " + curPersonID)) != undefined;
+
+%>
+
+<%
+    baseGreen = "#06a478";
+baseRed = "#E90935";
+
+lightGreen = "#62D2B3";
+lightRed = "#F6738D";
+
+darkGreen = "#20896C";
+darkRed = "#A0253D";
+%>
+
+
+<script src="scripts\tooltip\wz_tooltip_late.js"></script>
+
+<div class="styles">
+
+	<style>
+	
+	.page_title {
+		width: 100%;
+		font-size: 26px;
+		font-weight: bold;
+	}
+	
+	input[type="text"],input[type="checkbox"],textarea,select {
+		border: 1px solid #dddddd;
+		border-radius: 3px;
+	}
+
+	.block_filters {
+		padding-top: 20px;
+		font-size: 12px;
+	}
+	
+	#table-wrap {
+		position:relative;
+		max-height:500px;
+		width:100%;
+		padding: 0 10px;
+		overflow-x: visible;
+		overflow-y: auto;
+		
+	}
+	
+	table.report {
+		border-collapse: collapse;
+		font-size: 12px;
+		font-weight: normal;
+	}
+
+	table.report .head th {
+		background-color: <%=baseGreen%>;
+		color: #ffffff;
+		font-weight: bold;
+		text-align: center;
+		
+	}
+	table.report .head th {
+		position:sticky;
+		top:0;
+	}
+
+	table.report td {
+		border: 1px #999999 solid;
+		padding: 3px;
+		min-width: 50px;
+	}
+	
+	table.report .sortable {
+		cursor: pointer;
+		text-decoration: underline;
+	}
+
+	.error_msg {
+		color: #d90036;
+		display: none;
+		font-weight: bold;
+	}
+	
+	input.ass-button {
+		background-color: #eeeeee;
+		background-image: url(/pics/bg_btn_grey.png);
+		color: #666;
+		background-position: left center;
+		background-repeat: repeat-x;
+		border: solid 1px #FFFFFF;
+		padding: 3px 15px 3px 15px;
+		text-align: center;
+		margin: 0;
+	}
+	
+	input.ass-button:hover {
+		background-color: #e6f4fd;
+		background-image: url(/pics/bg_btn_lightblue.png);
+		color: #077fcc;
+		cursor: pointer;
+	}
+	
+	.block_filters select {
+		font-size: 11px;
+		height: 22px;
+		width: 500px;
+		padding: 0px;
+		~font-weight: bold;
+	}
+	
+	
+	.tooltip {
+		max-width: 500px;
+	}
+	
+	.clickable {
+		cursor: pointer;
+	}
+	
+	.vert_btn_block {
+		margin-left: 380px;
+		float: left;
+		position: relative;
+	}
+	
+	.vert_btn_block .ass-button {
+		margin-left: 0px;
+		width: 130px;
+	}
+	.WTCSS-ass-app .buttons_panel input.ass-button.save, input.ass-button#make_report {
+		background: <%=lightGreen%> !important;
+		transition:.3s ease-in-out;
+	}
+	input.ass-button#make_report:hover{
+		background: <%=baseGreen%> !important;
+		color: white;
+	}
+	input.ass-button.ass-button-confirm{
+		background: <%=lightGreen%>;
+		color: #333;
+		transition:.3s ease-in-out;
+	}
+	input.ass-button.ass-button-confirm:hover{
+		background: <%=baseGreen%>;
+		color: white;
+	}	
+/*================== PRELOADER STYLES ==================*/
+.loader__wrapper{
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background: rgba(255, 255, 255, 0.4);
+    z-index:1000;
+}
+
+.loader {
+  margin: 45vh auto;
+  font-size: 25px;
+  width: 1em;
+  height: 1em;
+  border-radius: 50%;
+  position: absolute;
+  left: 50%;
+  text-indent: -9999em;
+  -webkit-animation: load5 1.1s infinite ease;
+  animation: load5 1.1s infinite ease;
+  -webkit-transform: translateZ(0);
+  -ms-transform: translateZ(0);
+  transform: translateZ(0);
+}
+@-webkit-keyframes load5 {
+  0%,
+100% {
+    box-shadow: 0em -2.6em 0em 0em #06a478, 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.5), -1.8em -1.8em 0 0em rgba(6,164,120, 0.7);
+  }
+  12.5% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.7), 1.8em -1.8em 0 0em #06a478, 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.5);
+  }
+  25% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.5), 1.8em -1.8em 0 0em rgba(6,164,120, 0.7), 2.5em 0em 0 0em #06a478, 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  37.5% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.5), 2.5em 0em 0 0em rgba(6,164,120, 0.7), 1.75em 1.75em 0 0em #06a478, 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  50% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.5), 1.75em 1.75em 0 0em rgba(6,164,120, 0.7), 0em 2.5em 0 0em #06a478, -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  62.5% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.5), 0em 2.5em 0 0em rgba(6,164,120, 0.7), -1.8em 1.8em 0 0em #06a478, -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  75% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.5), -1.8em 1.8em 0 0em rgba(6,164,120, 0.7), -2.6em 0em 0 0em #06a478, -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  87.5% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.5), -2.6em 0em 0 0em rgba(6,164,120, 0.7), -1.8em -1.8em 0 0em #06a478;
+  }
+}
+@keyframes load5 {
+  0%,
+  100% {
+    box-shadow: 0em -2.6em 0em 0em #06a478, 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.5), -1.8em -1.8em 0 0em rgba(6,164,120, 0.7);
+  }
+  12.5% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.7), 1.8em -1.8em 0 0em #06a478, 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.5);
+  }
+  25% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.5), 1.8em -1.8em 0 0em rgba(6,164,120, 0.7), 2.5em 0em 0 0em #06a478, 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  37.5% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.5), 2.5em 0em 0 0em rgba(6,164,120, 0.7), 1.75em 1.75em 0 0em #06a478, 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  50% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.5), 1.75em 1.75em 0 0em rgba(6,164,120, 0.7), 0em 2.5em 0 0em #06a478, -1.8em 1.8em 0 0em rgba(6,164,120, 0.2), -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  62.5% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.5), 0em 2.5em 0 0em rgba(6,164,120, 0.7), -1.8em 1.8em 0 0em #06a478, -2.6em 0em 0 0em rgba(6,164,120, 0.2), -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  75% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.5), -1.8em 1.8em 0 0em rgba(6,164,120, 0.7), -2.6em 0em 0 0em #06a478, -1.8em -1.8em 0 0em rgba(6,164,120, 0.2);
+  }
+  87.5% {
+    box-shadow: 0em -2.6em 0em 0em rgba(6,164,120, 0.2), 1.8em -1.8em 0 0em rgba(6,164,120, 0.2), 2.5em 0em 0 0em rgba(6,164,120, 0.2), 1.75em 1.75em 0 0em rgba(6,164,120, 0.2), 0em 2.5em 0 0em rgba(6,164,120, 0.2), -1.8em 1.8em 0 0em rgba(6,164,120, 0.5), -2.6em 0em 0 0em rgba(6,164,120, 0.7), -1.8em -1.8em 0 0em #06a478;
+  }
+}
+/*================== PRELOADER STYLES END ==================*/
+
+	</style>
+</div>
+
+<div class="page_title">Панель руководителя</div>
+
+<div class="loader__wrapper">
+	<div class="loader"></div>
+</div>
+
+<form name="params" class="params" action="<%=Request.Url%>" method="post">
+<table width="900" cellspacing="0" cellpadding="4" class="block_filters">
+
+<% if (showProcFilter) { %>
+<tr class="must_be_filled">
+	<td width="50%" style="display:none;">
+		<input type="hidden" name="proc_id" class="proc_id" value="<%=assessmentAppraiseID%>">
+		<input type="text" style="width:95%; margin: 5px 0; " class="inputEdit" readonly name="proc_name" value="<%=assessmentAppraiseName%>">
+	</td>
+    <td width="50%">
+		<input type="button" style="width: 250px" value="Выбрать процедуру" class="ass-button" onClick="show('Процедура', 'proc_id', 'proc_name', 'assessment_appraise', '', '', '$elem/is_model = false()')">
+		<img src="pics/no.gif" class="clickable" onclick="clearFields('proc_id', 'proc_name')" />
+	</td>
+</tr>
+<% } %>
+
+<tr>
+	<td width="50%" style="display:none;">
+		<input type="hidden" name="person_ids" class="person_ids" value="<%=getFormValText("person_ids")%>">
+		<input type="hidden" style="width:95%; margin: 5px 0; " class="inputEdit" readonly name="person_names" value="<%=getFormValText("person_names")%>">
+	</td>
+    <td width="50%">
+		<input type="hidden" style="width: 250px" value="Выбрать сотрудников" class="ass-button" onClick="show('Сотрудники', 'person_ids', 'person_names', 'collaborator', '', '', '', true, true)">
+		<img hidden src="pics/no.gif" class="clickable" onclick="clearFields('person_ids', 'person_names')" />
+	</td>
+</tr>
+
+<tr>
+	<td width="50%" style="display:none;">
+		<input type="hidden" name="func_subdiv_ids" class="func_subdiv_ids" value="<%=getFormValText("func_subdiv_ids")%>">
+		<input type="hidden" style="width:95%; margin: 5px 0;" class="inputEdit" readonly name="func_subdiv_names" value="<%=getFormValText("func_subdiv_names")%>">
+	</td>
+    <td width="50%">
+		<input type="hidden" style="width: 250px" value="Выбрать ключевое подразделение" class="ass-button" onClick="show('Подразделения', 'func_subdiv_ids', 'func_subdiv_names', 'subdivision', '<%=DEPARTMENT_IDS.join(";")%>', '', '', true, true)">
+		<img hidden src="pics/no.gif" class="clickable" onclick="clearFields('func_subdiv_ids', 'func_subdiv_names')" />
+	</td>
+</tr>
+
+<% if (teWorkflow != undefined) { %>
+<tr>
+	<td width="50%" style="display:none;">
+		<select name="workflow_state">
+			<option value="no"></option>
+			<% for (state in teWorkflow.states) { %>
+			<option value="<%=state.code%>" <%=(workflowState == state.code ? "selected" : "")%>><%=state.name%></option>
+			<% } %>
+		</select>
+	</td>
+    <td width="50%">
+		<span style="width: 250px; display: none; text-align: left;">Этап оценки</span>
+		<img hidden src="pics/no.gif" class="clickable" onclick="clearFields('workflow_state')" />
+	</td>
+</tr>
+<% } %>
+
+<tr>
+	<td width="50%" style="display:none;">
+		<select style="" name="general_mark">
+			<option value=""></option>
+			<% for (generalMark in generalMarks) { %>
+			<option value="<%=generalMark.val%>" <%=(getFormValInt("general_mark") == generalMark.val ? "selected" : "")%>>
+				<%=generalMark.name%>
+			</option>
+			<% } %>
+		</select>
+	</td>
+    <td width="50%" style="display:none;">
+		<span style="width: 250px; display: none; text-align: left;">Оценка</span>
+		<img hidden src="pics/no.gif" class="clickable" onclick="clearFields('general_mark')" />
+	</td>
+</tr>
+
+
+
+<tr onmouseover="Tip('<div class=&quot;tooltip&quot;><%=HtmlEncode(TOOLTIP_FOR_FUNCMANAGER)%></div>')" class="qq">
+	<td width="100%" colspan="2">
+		<input type="checkbox" name="show_coll_for_funcmanager" class="" <%=(showCollForFuncmanager ? "checked" : "")%>>
+		<b>Мои сотрудники</b> (функциональное руководство)
+	</td>
+</tr>
+
+<tr onmouseover="Tip('<div class=&quot;tooltip&quot;><%=HtmlEncode(TOOLTIP_FOR_HIGHMANAGER)%></div>')" class="qq">
+	<td width="100%" colspan="2">
+		<input type="checkbox" name="show_coll_for_highmanager" class="" <%=(showCollForHighmanager ? "checked" : "")%>>
+		<b>Подчиненные моих сотрудников</b> (вышестоящее руководство)
+	</td>
+</tr>
+
+<% if(isAdminManager){ %>
+<tr onmouseover="Tip('<div class=&quot;tooltip&quot;><%=HtmlEncode(TOOLTIP_FOR_ADMMANAGER)%></div>')" class="qq">
+	<td width="100%" colspan="2">
+		<input type="checkbox" name="show_coll_for_admmanager" class="" <%=(showCollForAdmmanager ? "checked" : "")%>>
+		Мои административные подчиненные (административное руководство)
+	</td>
+</tr>
+<% } %>
+
+
+<tr>
+	<td width="100%" colspan="2" class="qq" style="display:none;">
+		<input type="hidden" name="show_dismissed" class="show_dismissed" <%=(showDismissed ? "checked" : "")%>> Показывать уволенных
+	</td>
+</tr>
+
+<tr>
+	<td width="100%" colspan="2" class="qq" style="display:none;">
+		<input type="hidden" name="show_done" class="show_done" <%=(showDone ? "checked" : "")%>> Показывать сотрудников на этапе &quot;Завершено&quot;
+	</td>
+</tr>
+
+
+
+
+
+
+
+
+
+
+
+<% if (curUserHasManyFaces) { %>
+<tr>
+	<td width="100%" colspan="2">
+		Просматривать от лица:
+		<select name="face_person_id">
+			<option value="<%=curUserID%>" <%=(getFormValInt("face_person_id") == curUserID ? "selected" : "")%>><%=curUser.fullname%></option>
+			<% for (curUserFace in curUserFaces) { %>
+			<option value="<%=curUserFace.face_person_id%>" <%=(getFormValInt("face_person_id") == curUserFace.face_person_id ? "selected" : "")%>><%=curUserFace.face_person_fullname%></option>
+			<% } %>
+		</select>
+	</td>
+</tr >
+<% } %>
+
+    <tr>
+        <td colspan="2" align="left">
+            <input type="submit" value="Показать" name="make_report" class="ass-button" id="make_report" />
+            <% if (showTable) { %>
+                <input type="button" class="print_form ass-button" onclick="exportReportFileToExcel();" value="Экспорт в Excel">
+                    <% } %>
+                    <input type="button" class="clear_filters ass-button" onclick="clearFilters();" value="Снять все фильтры">
+                    </td>
+                </tr>
+</table>
+
+        <input type="hidden" name="submitted" class="submitted" value="true">
+
+            <input type="hidden" name="action" class="action" value="">
+                <input type="hidden" name="data" class="data" value="">
+
+                    <input type="hidden" name="sort_by" id="sort_by" value="<%=sortBy%>">
+                        <input type="hidden" name="sort_direction" id="sort_direction" value="<%=sortDirection%>">
+
+                        </form>
+
+
+                        <% if (showTable) { %>
+
+	<% if (curUserCanEdit) { %>
+		
+	<% } %>
+
+                        <!--<input type="button" class="ass-button" value="Печать" onclick="printTable()">-->
+
+
+
+                            <br>
+
+
+
+                                <%
+                                reportTable = evalTableTemplate("sns1227_bossPage_table", USE_EXPORT_MODE);
+                                reportFilePath = saveFileToTrash(reportTable.excel, "html", "sns_reports");
+		%>
+                                <h3>Моя команда</h3>
+                                <%=reportTable.web%>
+                                <br>
+                                    <div class="error_msg"></div>
+                                    <% if (curUserCanEdit) { %>
+		<span style="float: left; position: relative;">
+			<span>Отметить выделенное как </span>
+			<input type="button" class="ass-button" value="Утвержденное" onclick="setForAllChecked('confirm')">			
+		</span>
+		
+		<span class="vert_btn_block">
+			<input type="button" class="ass-button" value="Сохранить" onclick="save()">
+			<br>
+			<input type="button" class="ass-button ass-button-confirm" value="Утвердить" onclick="save('confirm')">
+		</span>
+	<% } %>
+<% 
+alert("check_finile" + (OptInt(GetCurTicks())-OptInt(time1)) )
+} %>
+
+<br><br>
+
+<script>
+document.getElementsByName('workflow_state')[0].style.visibility = 'hidden';
+document.getElementsByName('general_mark')[0].style.visibility = 'hidden';
+POST_JSON = decodeURIComponent("<%=UrlEncode(tools.object_to_text(Request.Form, "json"))%>");
+REQUEST_URL = "<%=Request.Url%>";
+
+function exportReportFileToExcel()
+{	
+	var modalWin = window.open('assessment_excel_export.html?mode=htmlfileurl&htmlfileurl=<%=reportFilePath%>','','');
+}
+
+function openForm(assessmentAppraiseID, paID, type)
+{
+	window.open('/view_doc.html?mode=assessment_appraise&doc_id=&assessment_appraise_id='+assessmentAppraiseID+'&f_id=&pa_id='+paID+'&assessment_appraise_type='+type);
+}
+
+
+function checkAll()
+{
+	$('input.checked_coll').prop('checked', true);
+}
+
+function uncheckAll()
+{
+	$('input.checked_coll').prop('checked', false);
+}
+
+function setForAllChecked(action)
+{
+	var $lines = $('tr.line');
+	var dataToSave = [];
+	$lines.each(function()
+	{
+		var $line = $(this);
+		
+		if ($line.find('input.checked_coll').is(':checked'))
+		{
+			if ($line.find('input.plan_id').length > 0)
+			{
+					dataToSave.push({
+						plan_id: $line.getValue('plan_id'),
+						advance_decision: action == 'confirm'? "Утвердить":'',
+						comment: $line.getValue('comment')
+					});
+			}
+					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			
+				var dataToSaveMark = {};
+				var formData = {};
+				
+				//////////////O_O//////////////////////////////////////
+				formData.generalMark = $line.getValue('general_mark_val') //  self.getGeneralMark();
+				//////////////O_O//////////////////////////////////////						
+				
+				cdir(formData);
+				encodeSpecChars(formData);
+				
+				var jsonData = JSON.stringify(formData);
+				
+				dataToSaveMark = {
+					pa_id: $line.getValue('plan_id'),
+					json_data: jsonData
+				}
+				//////////////O_O//////////////////////////////////////
+				callAjaxSaveFunction('saveGeneralForm', dataToSaveMark, afterSaveComment,true);
+				
+				function afterSaveComment(resultData)
+				{
+					clog(resultData);
+					var saveResult = JSON.parse(resultData);
+					
+					
+					if (saveResult.checkResult)
+					{
+						if (saveResult.checkResult.hasErrors)
+						{
+							alert(
+								"Форма заполнена не полностью. Данные сохранены, но переход на следующий этап невозможен.\n\n"
+								+saveResult.checkResult.errorMessages.join('\n')
+							);
+						}
+					}
+					
+					if (saveResult.saved)
+					{
+						changeControl.reset();
+					
+						if (actionAfter)
+							actionAfter(saveResult);
+					
+						
+					}
+				}
+			////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+			
+		}
+		
+	});
+	$('form.params')
+		.setValue('action', action)
+		.setValue('data', encodeURIComponent(JSON.stringify(dataToSave)))
+		.submit();
+	
+}
+
+function commentsFilledCorrectly()
+{
+	var result = true;
+
+	var $lines = $('tr.line');
+	
+	$lines.each(function()
+	{
+		var $line = $(this);
+				
+		if ($line.find('input.plan_id').length > 0)
+		{
+			if ($line.getValue('advance_decision') == 'Отклонить' || (($line.getValue('comment') == "") || ($line.getValue('comment').length < 20)))
+			{
+				result = false;
+				$line.find('textarea.comment').css('background-color', '<%=lightRed%>');
+			}
+		}
+	});
+	
+	return result;
+}
+
+function save(action)
+{
+	action = action || 'save';
+
+	if (action == 'confirm')
+	{		
+		if (!commentsFilledCorrectly())
+		{
+			$('div.error_msg')
+				.text('Необходимо заполнить комментарии для отклоняемых планов!')
+				.show()
+				.fadeOut(10000);
+			
+			return false;
+		}
+	}
+	
+	var $lines = $('tr.line');
+	var dataToSave = [];
+	
+	$lines.each(function()
+	{
+		
+		var $line = $(this);
+		
+		if ($line.find('input.plan_id').length > 0)
+		{
+			dataToSave.push({
+				plan_id: $line.getValue('plan_id'),
+				advance_decision: action == 'confirm'? "Утвердить":'',
+				comment: $line.getValue('comment')
+			});
+		}
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+					
+						var dataToSaveMark = {};
+						var formData = {};
+						
+						//////////////O_O//////////////////////////////////////
+						formData.generalMark = $line.getValue('general_mark_val') //  self.getGeneralMark();
+						//////////////O_O//////////////////////////////////////						
+						
+						cdir(formData);
+						encodeSpecChars(formData);
+						
+						var jsonData = JSON.stringify(formData);
+						
+						dataToSaveMark = {
+							pa_id: $line.getValue('plan_id'),
+							json_data: jsonData
+						}
+						//////////////O_O//////////////////////////////////////
+						callAjaxSaveFunction('saveGeneralForm', dataToSaveMark, afterSaveComment,true);
+						
+						function afterSaveComment(resultData)
+						{
+							clog(resultData);
+							var saveResult = JSON.parse(resultData);
+							
+							
+							if (saveResult.checkResult)
+							{
+								if (saveResult.checkResult.hasErrors)
+								{
+									alert(
+										"Форма заполнена не полностью. Данные сохранены, но переход на следующий этап невозможен.\n\n"
+										+saveResult.checkResult.errorMessages.join('\n')
+									);
+								}
+							}
+							
+							if (saveResult.saved)
+							{
+								changeControl.reset();
+							
+								if (actionAfter)
+									actionAfter(saveResult);
+							
+								
+							}
+						}
+					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+					////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				
+	});
+	
+	$('form.params')
+		.setValue('action', action)
+		.setValue('data', encodeURIComponent(JSON.stringify(dataToSave)))
+		.submit();
+
+
+	/*
+	$.redirectPost("<%=Request.Url%>",
+                                                            {
+                                                                action: action,
+                                                            proc_id: $('table.block_filters').getValue('proc_id'),
+                                                            data: encodeURIComponent(JSON.stringify(dataToSave))
+	});
+                                                            */
+
+                                                            return true;
+}
+
+                                                            function printTable()
+                                                            {
+	var $printForm = $('<div />', {'class': 'print_form' });
+
+                                                            $printForm.append( $('div.styles').clone() );
+                                                            $printForm.append( $('table.report').clone() );
+
+
+                                                            var removeElems = '.col_check';
+                                                            var inputsToPlainText = 'input[type="text"], select, textarea';
+
+
+                                                            $printForm.find(removeElems).remove();
+
+                                                            $printForm.find(inputsToPlainText).each(function()
+                                                            {
+		var $ed = $(this);
+
+                                                            if ($ed.is('select, input, textarea'))
+                                                            {
+			var edVal;
+
+                                                            if ($ed.is('select'))
+                                                            edVal = $ed.find('option:selected').text();
+                                                            else
+                                                            edVal = $ed.val();
+
+                                                            var $span = $('<span></span>');
+                                                            $span
+                                                            .addClass( $ed.attr('class') )
+                                                            .text( edVal );
+                                                            $ed.replaceWith($span);
+		}
+	});
+
+
+                                                            var PopupPage = '<html><head><meta charset="utf-8"></head><body>'+$printForm.html()+'</body></html>';
+
+                                                            var printWin = window.open('','','toolbar,width=1000,height=600,scrollbars,resizable,menubar');
+                                                            printWin.document.write(PopupPage);
+                                                            printWin.document.close();
+                                                            printWin.focus();
+                                                            printWin.print();
+
+                                                            $printForm.remove();
+}
+
+                                                            function doSubmit()
+                                                            {
+                                                                $('form.params').submit();
+                                                            return true;
+}
+
+                                                            function clearFilters()
+                                                            {
+                                                                $('form.params').find('input[type="text"], input[type="hidden"], select').not('input.submitted').val('');
+                                                            $('form.params').find('input[type="checkbox"]').prop('checked', false);
+}
+
+                                                            $(function()
+                                                            {
+                                                                autoAdjustContainerWidth();
+
+                                                            $('select.advance_decision').change(function(event)
+                                                            {
+		var $select = $(this);
+                                                            var $td = $select.parents('td:first');
+
+                                                            if ($select.val() == 'Утвердить')
+                                                            $td.css('background-color', '<%=lightGreen%>');
+                                                            else if ($select.val() == 'Отклонить')
+                                                            $td.css('background-color', '<%=lightRed%>');
+                                                            else
+                                                            $td.css('background-color', '#ffffff');
+	}).change();
+
+                                                            $('textarea.comment').change(function(event)
+                                                            {
+                                                                $(this).css('background-color', '#ffffff');
+	});
+
+                                                            $('input.checked_all_colls').click(function()
+                                                            {
+		var $checkedAll = $(this);
+
+                                                            $('input.checked_coll').each(function()
+                                                            {
+			var $input = $(this);
+
+                                                            $input.prop('checked', $checkedAll.prop('checked'));
+		});
+	});
+
+                                                            $('.coll_link, h3').click(function()
+                                                            {
+		var data = {
+                                                                url: REQUEST_URL,
+                                                            postJSON: POST_JSON
+		}
+
+                                                            window.sessionStorage.setItem('sns_boss_panel_return', JSON.stringify(data));
+	});
+
+                                                            window.sessionStorage.setItem('sns_boss_panel_return', '');
+});
+                                                            // ============= PRELOADER SCRIPTS =================
+                                                            $( window ).load(function(){
+                                                                $('.loader__wrapper').hide()
+                                                            })
+
+                                                            $( "#make_report" ).click(function(){
+                                                                $('.loader__wrapper').show()
+                                                            })
+
+                                                            $.ajax({
+                                                                stop: function(){
+                                                                $('.loader__wrapper').hide()
+                                                            }
+})
+                                                        // ============= PRELOADER SCRIPTS END =================
+                                                        </script>

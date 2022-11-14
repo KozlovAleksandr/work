@@ -1,0 +1,884 @@
+<%
+Server.Execute( "include/user_init.html" );
+
+LOG_PATH = "x-local://appraise_logs/";
+
+alert("!! START SAVING PLAN FORM !!!");
+var docBT_FUNC_MANAGER = tools.get_doc_by_key('boss_type', 'code', 'FR');
+
+paID = getFormValInt('pa_id');
+	
+docPaResponse = OpenDoc( UrlFromDocID( paID ) )
+
+curAssessmentAppraiseID = docPaResponse.TopElem.assessment_appraise_id;
+
+docAssessmentAppraise = OpenDoc( UrlFromDocID( curAssessmentAppraiseID ));
+curAssessmentAppraise = docAssessmentAppraise.TopElem;
+
+/* ---=== IMPERSONATE BLOCK ===--- */
+
+
+curPersonID = tools_web.get_user_data("assessment_impersonation_" + curUserID);
+if (curPersonID != null && curPersonID.HasProperty("imposter_id"))
+	curPersonID = curPersonID.imposter_id;
+else
+	curPersonID = null;
+
+arrImpersonates = ArraySelect(curAssessmentAppraise.impersonate_persons, "impersonator_id == " + curUserID + " && face_person_id.HasValue && (from_date.HasValue == false || from_date <= DateNewTime(Date())) && (to_date.HasValue == false || to_date >= DateNewTime(Date()))");
+
+if (curPersonID != null && ArrayOptFind(arrImpersonates, "face_person_id == " + curPersonID) != undefined)
+{
+	curPerson = OpenDoc(UrlFromDocID(curPersonID)).TopElem;
+}
+else
+{
+	curPersonID = curUserID;
+	curPerson = curUser;
+	tools_web.remove_user_data("assessment_impersonation_" + curUserID);
+}
+
+/* ---=== ================= ===--- */
+
+
+
+
+if (global_settings.settings.check_wf_access_assessment || true)
+{
+	curPA = docPaResponse.TopElem;
+	IS_HUMAN = !curPA.flag_appraise_department;
+	
+	_temp_assessment_plan = ArrayFirstElem(XQuery( 'for $assessment_plan in assessment_plans where $assessment_plan/assessment_appraise_id = ' + docPaResponse.TopElem.assessment_appraise_id +(IS_HUMAN ? ' and $assessment_plan/person_id = ' + curPA.person_id : ' and $assessment_plan/department_id = ' + curPA.department_id) + ' return $assessment_plan' ));
+	
+	if (curAssessmentAppraise.flag_use_plan)
+	{
+		curAssessmentPlanID = _temp_assessment_plan.id;
+		
+		docAssessmentPlan = OpenDoc( UrlFromDocID( curAssessmentPlanID ) );
+		curAssessmentPlan = docAssessmentPlan.TopElem;	
+	}
+	else
+	{
+		curAssessmentPlanID = docPaResponse.DocID;
+		curAssessmentPlan = curPA;
+	}
+
+	Server.Execute( "view_assessment_access_variables.html" );
+}
+
+
+
+
+function dateIsCorrect(date)
+{
+	try
+	{
+		if (Trim(date) == '')
+			throw 'Пустая дата!';
+		
+		ParseDate(date);
+		return true;
+	}
+	catch(e)
+	{
+		return false;
+	}
+}
+
+
+function saveComment(docPaResponse, docAssessmentPlan, elemID, elemType, commentText)
+{
+	alert("saveComment")
+	try
+	{
+		commentText = Trim(commentText);
+		if (commentText == "")
+			throw 'Comment cannot be empty!';
+		
+		var jsonComments;
+		
+		if (elemType == 'kpi')
+		{
+			var _kpi = docPaResponse.TopElem.kpis.GetOptChildByKey(Int(elemID));
+			if (_kpi == undefined)
+				return {saved: false};;
+			
+			jsonComments = _kpi.workflow_fields.ObtainChildByKey("comment").value;
+		}
+		else if (elemType == 'project')
+		{
+			var _project = docPaResponse.TopElem.projects.ObtainChildByKey(elemID);
+			
+			if (_project.project_id == '')
+				_project.project_id = elemID;
+			
+			jsonComments = _project.workflow_fields.ObtainChildByKey("comment").value;
+		}
+		else if (elemType == 'competence')
+		{
+			var _competence = docPaResponse.TopElem.competences.GetOptChildByKey(Int(elemID));
+			if (_competence == undefined)
+				return {saved: false};
+			
+			jsonComments = _competence.comment;
+		}
+		else if (elemType == 'general')
+		{	
+			jsonComments = docPaResponse.TopElem.comment;
+		}
+		else if (elemType == 'general_plan')
+		{	
+			jsonComments = docAssessmentPlan.TopElem.comment;
+		}
+		
+		
+		var comments;
+		
+		if (jsonComments != undefined && Trim(jsonComments) != "")
+			comments = tools.read_object(jsonComments);
+		else
+			comments = [];
+
+		var stateName = StrContains(docAssessmentPlan.TopElem.workflow_state, "exec_by_all") ? "" : Trim(docAssessmentPlan.TopElem.workflow_state_name);
+		
+		comments.push({
+			date: StrDate(Date(), true, false),
+			workflow_state: stateName,
+			person_id: curPersonID,
+			person_fullname: curPerson.lastname+" "+curPerson.firstname,
+			text: commentText
+		});
+		
+		jsonCommentsNew = tools.object_to_text(comments, 'json');
+		
+		if (elemType == 'kpi')
+		{
+			_kpi.workflow_fields.ObtainChildByKey("comment").value = jsonCommentsNew;
+		}
+		else if (elemType == 'project')
+		{
+			_project.workflow_fields.ObtainChildByKey("comment").value = jsonCommentsNew;
+		}
+		else if (elemType == 'competence')
+		{
+			_competence.comment = jsonCommentsNew;
+		}
+		else if (elemType == 'general')
+		{	
+			docPaResponse.TopElem.comment = jsonCommentsNew;
+		}
+		else if (elemType == 'general_plan')
+		{
+			docAssessmentPlan.TopElem.comment = jsonCommentsNew;
+		}
+		alert("CHECK")
+		if (elemType == 'general_plan')
+			docAssessmentPlan.Save();
+		else
+			docPaResponse.Save();
+
+	    //============================================================================
+	    commentText = StrReplace(commentText, '[br]', '');
+	    commentText = StrReplace(commentText, '[tab]', '\t');
+
+	    function getActiveNotification(i_objID, i_notificationTypeID)
+		{
+			var notifications = XQuery("sql: SELECT active_notifications.id FROM active_notifications WHERE active_notifications.status = 'active' AND active_notifications.object_id = "+i_objID+" AND active_notifications.notification_id = "+i_notificationTypeID);
+			if (ArrayCount(notifications) > 0) return ArrayOptFirstElem(notifications).id;
+			else return undefined
+	    }
+
+	    function addCommentToNotification(i_activeNotificationID, s_commentText)
+		{
+			var activeNotification = OpenDoc(UrlFromDocID(i_activeNotificationID));
+			activeNotification.TopElem.body = StrReplace(activeNotification.TopElem.body, activeNotification.TopElem.text, activeNotification.TopElem.text +"<br>"+OpenDoc(UrlFromDocID(curPersonID)).TopElem.fullname+":<br>\"<i>"+s_commentText+"</i>\"");
+			activeNotification.TopElem.text = activeNotification.TopElem.text +"<br>"+OpenDoc(UrlFromDocID(curPersonID)).TopElem.fullname+":<br>\"<i>"+s_commentText+"</i>\"";
+			activeNotification.Save()
+	    }
+
+	    // sot || coll - сотрудник оставил комментарий уведомление руководителю
+	    // ruk || boss - руководит оставил комментарий уведомление сотруднику
+
+	    try
+		{
+			var i_hoursDelay = 1;
+			var bossActiveNotification = getActiveNotification(curAssessmentPlanID, tools.get_doc_by_key('notification', 'code', 'DP_comment_pem_notification_ruk').DocID);
+			var collActiveNotification = getActiveNotification(curAssessmentPlanID, tools.get_doc_by_key('notification', 'code', 'DP_comment_pem_notification_sot').DocID);
+
+			// тут финт ушами где ДЮД и ДДФ не подчиняется СОА, но СОА хочет комментарии ДЮД и ДДФ
+
+			if (OpenDoc(UrlFromDocID(curAssessmentPlanID)).TopElem.person_id.sd.position_id == 6384307546618548403 || OpenDoc(UrlFromDocID(curAssessmentPlanID)).TopElem.person_id.sd.position_id == 6384307867984817521){
+				var SoaActiveNotification = getActiveNotification(curAssessmentPlanID, tools.get_doc_by_key('notification', 'code', 'DP_comment_pem_notification_sot_vr').DocID);
+				if( SoaActiveNotification == undefined && curPersonID == docAssessmentPlan.TopElem.person_id ){
+				tools.create_notification("DP_comment_pem_notification_sot_vr", curAssessmentPlanID, OpenDoc(UrlFromDocID(curPersonID)).TopElem.fullname+":<br>\"<i>"+commentText+"</i>\"", curPersonID);
+				i_activeNotificationID = getActiveNotification(curAssessmentPlanID, tools.get_doc_by_key('notification', 'code', 'DP_comment_pem_notification_sot_vr').DocID);
+				activeNotificationDoc = OpenDoc(UrlFromDocID(i_activeNotificationID));
+				activeNotificationDoc.TopElem.send_date = DateOffset(Date(), i_hoursDelay * 3600);
+				activeNotificationDoc.Save();
+				} else if( SoaActiveNotification != undefined && curPersonID == docAssessmentPlan.TopElem.person_id ){
+				addCommentToNotification(SoaActiveNotification, commentText);
+				}
+			}
+
+				if( bossActiveNotification != undefined && curPersonID != docAssessmentPlan.TopElem.person_id ){
+				addCommentToNotification(bossActiveNotification, commentText)
+			}else if( collActiveNotification != undefined && curPersonID == docAssessmentPlan.TopElem.person_id ){
+				addCommentToNotification(collActiveNotification, commentText)
+			}else if( bossActiveNotification == undefined && curPersonID != docAssessmentPlan.TopElem.person_id ){
+				tools.create_notification("DP_comment_pem_notification_ruk", curAssessmentPlanID, OpenDoc(UrlFromDocID(curPersonID)).TopElem.fullname+":<br>\"<i>"+commentText+"</i>\"", curPersonID);
+				
+				i_activeNotificationID = getActiveNotification(curAssessmentPlanID, tools.get_doc_by_key('notification', 'code', 'DP_comment_pem_notification_ruk').DocID);
+				activeNotificationDoc = OpenDoc(UrlFromDocID(i_activeNotificationID));
+				activeNotificationDoc.TopElem.send_date = DateOffset(Date(), i_hoursDelay * 3600);
+				activeNotificationDoc.Save()
+			}else if( collActiveNotification == undefined && curPersonID == docAssessmentPlan.TopElem.person_id ){
+				tools.create_notification("DP_comment_pem_notification_sot", curAssessmentPlanID, OpenDoc(UrlFromDocID(curPersonID)).TopElem.fullname+":<br>\"<i>"+commentText+"</i>\"", curPersonID);
+				i_activeNotificationID = getActiveNotification(curAssessmentPlanID, tools.get_doc_by_key('notification', 'code', 'DP_comment_pem_notification_sot').DocID);
+				activeNotificationDoc = OpenDoc(UrlFromDocID(i_activeNotificationID));
+				activeNotificationDoc.TopElem.send_date = DateOffset(Date(), i_hoursDelay * 3600);
+				activeNotificationDoc.Save()
+			}
+	    }
+		catch(err){alert(err)}
+	    //============================================================================
+
+		return {saved: true, comments: comments};
+	}
+	catch(e)
+	{
+		alert(e);
+		return {saved: false};
+	}
+}
+
+function checkActivityForm(data, curPA, curAssessmentPlan)
+{
+	var result = {
+		hasErrors: false,
+		errorMessages: []
+	};
+	
+	var FORM_TYPE = OptInt( getCustomElem(curAssessmentPlan, "sns_assessment_form_type"), 0 );
+	
+	var totalWeightSum = 0;
+	
+	
+	
+	if (FORM_TYPE == 5)
+	{
+		if (data.HasProperty('projects'))
+		{
+			if (StrBegins(PHASE, 'SetObj') || StrBegins(PHASE, 'MidApp'))
+			{
+				if (ArrayOptFind(data.projects, "This.name == '' || This.weight == '' || This.plan == '' || This.realization_date_from == '' || This.realization_date_to == ''") != undefined)
+					result.errorMessages.push("В блоке целей для всех целей должны быть заполнены поля 'Цели', 'Вес цели', 'План', 'Срок реализации'");
+				
+				if (ArrayOptFind(data.projects, "OptReal(This.weight) == undefined || OptReal(This.weight) == 0") != undefined)
+					result.errorMessages.push("Значение поля 'Вес' должно быть числом больше нуля.");
+			}
+			
+			if (StrBegins(PHASE, 'FinApp'))
+			{
+				if (ArrayOptFind(data.projects, "This.fact == '' || This.exec_mark == ''") != undefined)
+					result.errorMessages.push("В блоке целей для всех целей должны быть заполнены поля 'Факт', 'Экспертная оценка выполнения целей'");
+			}
+			
+			//alert( tools.object_to_text(data.projects, 'json') );
+			for (_project in data.projects)
+			{
+				totalWeightSum += OptReal(_project.weight, 0);
+			}
+			
+			
+	
+		}
+		else
+		{
+			result.errorMessages.push("Не указаны цели!");
+		}
+
+		
+		/*for (_competence in curPA.competences)
+		{
+			totalWeightSum += _competence.weight;
+		}*/
+		totalWeightSum += ArraySum(curPA.kpis, "This.weight");
+		
+		//alert("totalWeightSum: "+totalWeightSum);
+		
+		if (totalWeightSum != 100)
+			result.errorMessages.push("Cумма весов KPI и целей должна соответствовать 100%.");
+	}
+
+	
+	anyCommentMustBeRecentlyFilled =
+		( (FORM_TYPE == 3 || FORM_TYPE == 4 || FORM_TYPE == 5) && PHASE == 'MidApp_interview_by_coll' )
+		|| ( (FORM_TYPE == 3 || FORM_TYPE == 4) && PHASE == 'FinApp_appraise_by_coll' )
+		
+	
+	if (anyCommentMustBeRecentlyFilled)
+	{
+		var generalCommentRecentlyFilled = newCommentOfPersonExists(curPA.comment+'', curPersonID);
+		
+		var anyProjectCommentRecentlyFilled = false;
+		var projectCommentJSON;
+		
+		for (_project in curPA.projects)
+		{
+			projectCommentJSON = _project.workflow_fields.ObtainChildByKey('comment').value +'';
+			
+			if (newCommentOfPersonExists(projectCommentJSON, curPersonID))
+			{
+				anyProjectCommentRecentlyFilled = true
+				break;
+			}
+		}
+		
+		for (_kpi in curPA.kpis)
+		{
+			kpiCommentJSON = _kpi.workflow_fields.ObtainChildByKey('comment').value +'';
+			
+			if (newCommentOfPersonExists(kpiCommentJSON, curPersonID))
+			{
+				anyProjectCommentRecentlyFilled = true
+				break;
+			}
+		}
+		
+		if (!anyProjectCommentRecentlyFilled && !generalCommentRecentlyFilled)
+			result.errorMessages.push("Необходимо оставить комментарии хотя бы под одной из целей или общий комментарий!");
+	}
+
+	
+	/*if (FORM_TYPE >= 2 && FORM_TYPE <= 5 && PHASE == 'FinApp_appraise_by_boss')
+	{
+		var final_mark = OptInt(data.final_mark);
+		
+		if (final_mark < 1 || final_mark > 4)
+			result.errorMessages.push("Необходимо заполнить итоговую оценку!");
+	}*/
+	
+	if (ArrayCount(result.errorMessages) > 0)
+		result.hasErrors = true;
+	
+	return result;
+}
+
+function saveActivityForm(data, docPaResponse, docAssessmentPlan, checkResult)
+{
+	if (!IS_MODIFY)
+		return false;
+	
+	var storedProject;
+	
+	if (data.HasProperty('projects'))
+	{
+		for (_project in data.projects)
+		{
+			if (_project.id == '')
+				_project.id = tools.random_string(5);
+			
+			storedProject = docPaResponse.TopElem.projects.ObtainChildByKey(_project.id);
+			
+			if (storedProject.project_id == '')
+				storedProject.project_id = _project.id;
+			
+			storedProject.name = _project.name;
+			storedProject.plan = _project.plan;
+			storedProject.fact = _project.fact;
+			storedProject.mark = _project.exec_mark;
+			storedProject.weight = OptReal(_project.weight, 0);
+			storedProject.workflow_fields.ObtainChildByKey("realization_date").value = _project.realization_date_from+' - '+_project.realization_date_to;
+		}
+		
+		for (storedProject in ArraySelectAll(docPaResponse.TopElem.projects))
+		{
+			if (ArrayOptFind(data.projects, "This.id == storedProject.project_id") == undefined)
+				storedProject.Delete();
+		}
+	}
+	
+	if (data.HasProperty('recommended_mark'))
+		docPaResponse.TopElem.custom_elems.ObtainChildByKey('recommended_mark').value = data.recommended_mark;
+	
+	if (data.HasProperty('adm_mark'))
+		docPaResponse.TopElem.custom_elems.ObtainChildByKey('adm_mark').value = data.adm_mark;
+	
+	if (data.HasProperty('final_mark'))
+	{	
+		cur_col_role = 'none';
+		if (curPersonID == docPaResponse.TopElem.person_id)
+			cur_col_role = 'collaborator';
+			
+		if (curPersonID == docPaResponse.TopElem.expert_person_id)
+			cur_col_role = 'func_boss';
+			
+		if (ArrayOptFind(docPaResponse.TopElem.custom_experts, "This.person_id == curPersonID && This.person_type == 1") != undefined)
+			cur_col_role = 'custom_expert';
+		
+		if (ArrayOptFind(docPaResponse.TopElem.custom_experts, "This.person_id == curPersonID && This.person_type == 2") != undefined)
+			cur_col_role = 'adm_manager';
+		
+		new_object = {
+			grades : {log_activity_mark : String(data.final_mark)},
+			boss_id : curPersonID,
+			boss_type : cur_col_role,
+			wf_stage : docAssessmentPlan.TopElem.workflow_state,
+			date : Date()
+		}
+		_temp_log = tools.read_object(docAssessmentPlan.TopElem.custom_elems.ObtainChildByKey("grade_change_log").value);
+		if(!IsArray(_temp_log))
+			_temp_log = [];
+		_temp_log.push(new_object);
+		docAssessmentPlan.TopElem.custom_elems.ObtainChildByKey('grade_change_log').value = EncodeJson(_temp_log);
+		docAssessmentPlan.Save();
+		
+		docPaResponse.TopElem.overall = data.final_mark;
+	}
+	
+	
+	if (data.HasProperty('kpi_with_monthes'))
+		docPaResponse.TopElem.custom_elems.ObtainChildByKey('kpi_with_monthes').value = data.kpi_with_monthes;
+	
+	
+	
+	if (checkResult.hasErrors)
+		docPaResponse.TopElem.is_done = false;
+	else
+		docPaResponse.TopElem.is_done = true;
+	
+	docPaResponse.Save();
+	
+	return true;
+}
+
+function checkActivityFormAdmMark(data, curPA, curAssessmentPlan)
+{
+	var result = {
+		hasErrors: false,
+		errorMessages: []
+	};
+	
+	return result;
+}
+
+function saveActivityFormAdmMark(data, docPaResponse, docAssessmentPlan, checkResult)
+{
+	if (!IS_MODIFY)
+		return false;
+	
+	if (data.HasProperty('adm_mark'))
+		docPaResponse.TopElem.custom_elems.ObtainChildByKey('adm_mark').value = data.adm_mark;
+	
+	docPaResponse.Save();
+	
+	return true;
+}
+
+
+function checkCompetenceForm(data)
+{
+	var result = {
+		hasErrors: false,
+		errorMessages: []
+	};
+	alert(EncodeJson(data))
+	var allIndicatorMarksFilled = true;
+	
+	for (_competence in data.competences)
+	{
+		for (_indicator in _competence.indicators)
+		{
+			if (StrBegins(PHASE, 'SetObj'))
+			{
+				if (OptReal(_indicator.year_begin_mark) == undefined)
+					allIndicatorMarksFilled = false;				
+			}
+			else if (StrBegins(PHASE, 'FinApp'))
+			{
+				if (OptReal(_indicator.year_end_mark) == undefined)
+					allIndicatorMarksFilled = false;
+				
+			}
+		}
+	}
+	
+	if (!allIndicatorMarksFilled)
+		result.errorMessages.push("Необходимо заполнить оценки для всех индикаторов!");
+	
+	if (PHASE == 'SetObj_interview_by_coll' || PHASE == 'MidApp_interview_by_coll' || PHASE == 'FinApp_appraise_by_coll')
+	{
+		if (data.career_expectations != "" && data.ready_to_move == "")
+			result.errorMessages.push('Необходимо указать, готовы ли вы к переезду!');
+		
+		if (data.ready_to_move == "true" && data.where_to_move_ids == "")
+			result.errorMessages.push('Необходимо указать регионы, в которые вы готовы переехать.');
+	}
+	
+	
+	if (ArrayCount(result.errorMessages) > 0)
+		result.hasErrors = true;
+	
+	return result;
+}
+
+function saveCompetenceForm(data, docPaResponse, docAssessmentPlan, checkResult)
+{
+	if (!IS_MODIFY)
+		return false;
+	
+	var storedCompetence, storedIndicator;
+	
+	for (_competence in data.competences)
+	{
+		storedCompetence = docPaResponse.TopElem.competences.GetOptChildByKey(OptInt(_competence.id));
+		if (storedCompetence == undefined)
+			continue;
+		
+		storedCompetence.mark_value = _competence.year_begin_mark;
+		storedCompetence.mark_text = storedCompetence.mark_value;
+		
+		storedCompetence.plan_value = _competence.year_end_mark;
+		storedCompetence.plan_text = storedCompetence.plan_value;
+		
+		for (_indicator in _competence.indicators)
+		{
+			storedIndicator = storedCompetence.indicators.GetOptChildByKey(OptInt(_indicator.id));
+			if (storedIndicator == undefined)
+				continue;
+			
+			storedIndicator.mark_value = _indicator.year_begin_mark;
+			storedIndicator.mark_text = storedIndicator.mark_value;
+			
+			storedIndicator.plan_value = _indicator.year_end_mark;
+			storedIndicator.plan_text = storedIndicator.plan_value;
+		}
+	}
+	
+	docPaResponse.TopElem.comment = data.career_expectations;
+	
+	docPaResponse.TopElem.custom_elems.ObtainChildByKey('ready_to_move').value = data.ready_to_move;
+	docPaResponse.TopElem.custom_elems.ObtainChildByKey('where_to_move_ids').value = data.where_to_move_ids;
+	
+	if (data.HasProperty('overall'))
+	{
+		docPaResponse.TopElem.overall = 0.0 + data.overall;
+	}
+	
+	
+	if (checkResult.hasErrors)
+		docPaResponse.TopElem.is_done = false;
+	else
+		docPaResponse.TopElem.is_done = true;
+	
+	docPaResponse.Save();
+	
+	
+	
+	return true;
+}
+
+function checkGeneralForm(data)
+{
+	var result = {
+		hasErrors: false,
+		errorMessages: []
+	};
+	
+	if (PHASE == 'FinApp_appraise_by_boss')
+	{
+		// больше не используется
+		//if (OptInt(data.generalMark) >= 4 && data.collIsReadyForPromotion == '')
+		//	result.errorMessages.push("Необходимо указать, готов ли сотрудник к продвижению!");
+	}
+	
+	if (ArrayCount(result.errorMessages) > 0)
+		result.hasErrors = true;
+	
+	return result;
+}
+
+function sendNotifacation (generalMark, cur_col_role, docAssessmentPlan, _temp_log) {
+	if (cur_col_role == 'custom_expert') {
+		_func_boss_logs = ArraySelect ( _temp_log, 'boss_type == "This.func_boss" ' );
+		if (ArrayCount(_func_boss_logs) > 0) {
+			_last_log = ArrayOptMax ( _func_boss_logs, 'OptDate(This.date)' );
+			if (OptInt(_last_log.grades.log_general_mark) != OptInt(generalMark)) {
+			tools.create_notification("func_manager_notification", _last_log.boss_id, '', Int(docAssessmentPlan.TopElem.id));
+			}		
+		}
+	}
+}
+
+function saveGeneralForm(data, docPaResponse, docAssessmentPlan, checkResult)
+{
+	if (!IS_MODIFY)
+		return false;
+	
+	generalMark = data.generalMark;
+	
+	docAssessmentPlan.TopElem.integral_mark = generalMark;
+
+	cur_col_role = 'none';
+	if (curPersonID == docAssessmentPlan.TopElem.person_id)
+		cur_col_role = 'collaborator';
+		
+	if (curPersonID == docAssessmentPlan.TopElem.expert_person_id)
+		cur_col_role = 'func_boss';
+		
+	if (ArrayOptFind(docAssessmentPlan.TopElem.custom_experts, "This.person_id == curPersonID && This.person_type == 1") != undefined)
+		cur_col_role = 'custom_expert';
+
+	if (ArrayOptFind(docAssessmentPlan.TopElem.custom_experts, "This.person_id == curPersonID && This.person_type == 2") != undefined)
+		cur_col_role = 'adm_manager';
+
+	new_object = {
+		grades : {log_general_mark : String(docAssessmentPlan.TopElem.integral_mark)},
+		boss_id : curPersonID,
+		boss_type : cur_col_role,
+		wf_stage : 'FinApp_appraise_by_boss',
+		date : Date()
+	}
+	_temp_log = tools.read_object(docAssessmentPlan.TopElem.custom_elems.ObtainChildByKey("grade_change_log").value);
+	if(!IsArray(_temp_log))
+		_temp_log = [];
+	_temp_log.push(new_object);
+	docAssessmentPlan.TopElem.custom_elems.ObtainChildByKey('grade_change_log').value = EncodeJson(_temp_log);	
+	var collIsReadyForPromotion = '';
+	
+	/*if (data.collIsReadyForPromotion != '')
+		collIsReadyForPromotion = (data.collIsReadyForPromotion == 'yes');
+	else
+		collIsReadyForPromotion = '';
+	*/
+	
+	docAssessmentPlan.TopElem.custom_elems.ObtainChildByKey('collIsReadyForPromotion').value = collIsReadyForPromotion;
+	
+	
+	if (checkResult.hasErrors)
+		docAssessmentPlan.TopElem.is_done = false;
+	else
+		docAssessmentPlan.TopElem.is_done = true;
+	
+	sendNotifacation(generalMark, cur_col_role, docAssessmentPlan, _temp_log);
+	
+	docAssessmentPlan.Save();
+	
+	return true;
+}
+
+function delegateBossRole(impersonatorID, docAssessmentAppraise)
+{
+	var eImpersonator;
+	
+	eImpersonator = ArrayOptFind(
+		docAssessmentAppraise.TopElem.impersonate_persons,
+		"This.impersonator_id == curUserID && This.face_person_id == impersonatorID"
+	);
+
+	if (eImpersonator != undefined)
+	{
+		eImpersonator.Delete();
+	}
+	else
+	{
+		eImpersonator = docAssessmentAppraise.TopElem.impersonate_persons.ObtainChildByKey(impersonatorID, 'impersonator_id');
+		
+		teColl_Impersonator = OpenDoc(UrlFromDocID(impersonatorID)).TopElem;
+		
+		eImpersonator.impersonator_id = impersonatorID;
+		eImpersonator.impersonator_fullname = teColl_Impersonator.fullname;
+		
+		eImpersonator.face_person_id = curUserID;
+		eImpersonator.face_person_fullname = curUser.fullname;
+		
+		docAssessmentAppraise.Save();
+	}
+	
+	
+	return true;
+}
+
+
+function undelegateMyBossRole(docAssessmentAppraise)
+{	
+	for (impersonate_person in docAssessmentAppraise.TopElem.impersonate_persons)
+	{
+		if (impersonate_person.impersonator_id == curUserID)
+			impersonate_person.Delete();
+	}
+	
+	docAssessmentAppraise.Save();
+
+	return true;
+}
+
+function storeMarksToCustomField(docPaResponse, customElemName)
+{
+	try
+	{
+		docPaResponse.TopElem.custom_elems.ObtainChildByKey(customElemName).value = "<root>"+docPaResponse.TopElem.competences.Xml+"</root>";
+		docPaResponse.Save();
+	}
+	catch(e)
+	{
+		alert("error in storeMarksToCustomField: "+e)
+	}
+}
+
+
+action = getFormValText('action');
+
+
+if (action == 'saveActivityForm')
+{
+	jsonData = getFormValText('json_data');
+	data = tools.read_object(jsonData);
+	alert('jsonData1: ' + jsonData);
+	if (IS_MODIFY)
+	{
+		var checkResult = checkActivityForm(data, curPA, curAssessmentPlan);
+		saveActivityForm(data, docPaResponse, docAssessmentPlan, checkResult);
+		
+		saveResult = {saved: true, checkResult: checkResult};
+	}
+	else
+	{
+		alert("Нет прав для изменения формы оценки!");
+		saveResult = {saved: false, error: 'no rights'};
+	}
+
+	out( tools.object_to_text(saveResult, 'json') );
+}
+else if (action == 'saveActivityFormAdmMark')
+{
+	jsonData = getFormValText('json_data');
+	data = tools.read_object(jsonData);
+	alert('jsonData2: ' + jsonData);
+	if (IS_MODIFY)
+	{
+		var checkResult = checkActivityFormAdmMark(data, curPA, curAssessmentPlan);
+		saveActivityFormAdmMark(data, docPaResponse, docAssessmentPlan, checkResult);
+		
+		saveResult = {saved: true, checkResult: checkResult};
+	}
+	else
+	{
+		alert("Нет прав для изменения формы оценки!");
+		saveResult = {saved: false, error: 'no rights'};
+	}
+
+	out( tools.object_to_text(saveResult, 'json') );
+}
+else if (action == 'saveCompetenceForm')
+{
+	jsonData = getFormValText('json_data');
+	alert('jsonData2: ' + jsonData);
+	data = tools.read_object(jsonData);
+	
+	if (IS_MODIFY)
+	{
+		var checkResult = checkCompetenceForm(data);
+		saveCompetenceForm(data, docPaResponse, docAssessmentPlan, checkResult);
+		
+		if (PHASE == "SetObj_interview_by_coll" && curUserID == COLLABORATOR_USER_ID)
+			storeMarksToCustomField(docPaResponse, 'coll_marks_setobj');
+		else if (PHASE == "FinApp_appraise_by_coll" && curUserID == COLLABORATOR_USER_ID)
+			storeMarksToCustomField(docPaResponse, 'coll_marks_finapp');
+		else if (PHASE == "SetObj_confirm_by_boss" && curUserID == COLLABORATOR_EXPERT_ID)
+			storeMarksToCustomField(docPaResponse, 'boss_marks_setobj');
+		else if (PHASE == "FinApp_appraise_by_boss" && curUserID == COLLABORATOR_EXPERT_ID)
+			storeMarksToCustomField(docPaResponse, 'boss_marks_finapp');
+		
+		saveResult = {saved: true, checkResult: checkResult};
+	}
+	else
+	{
+		alert("Нет прав для изменения формы оценки!");
+		saveResult = {saved: false, error: 'no rights'};
+	}
+
+	out( tools.object_to_text(saveResult, 'json') );
+}
+else if (action == 'saveGeneralForm')
+{	
+	jsonData = getFormValText('json_data');
+	//alert("jsonData: "+jsonData);
+	data = tools.read_object(jsonData);
+	
+	grade_meassages = [];
+	if (IS_MODIFY)
+	{
+		var checkResult = checkGeneralForm(data);
+		saveGeneralForm(data, docPaResponse, docAssessmentPlan, checkResult);
+		var is_send_mail = getFormValText('is_send_to_fr')
+		//alert("is_send_mail: "+is_send_mail);
+		collabTE =  tools.open_doc(docAssessmentPlan.TopElem.person_id).TopElem;
+		if(is_send_mail=='true'){
+			_func_manager = ArrayOptFirstElem (collabTE.func_managers,'This.boss_type_id=='+docBT_FUNC_MANAGER.DocID+'');
+			tools.create_notification('pem_message_for_fr_boss', _func_manager.person_id,'Текст сообщения', null);
+		}
+		try{
+		positionTE = tools.open_doc(collabTE.position_id).TopElem;
+		gradeID = positionTE != undefined?  positionTE.custom_elems.ObtainChildByKey('grade_doc').value: undefined;
+		if(gradeID){
+			
+			positionCommonTE =  tools.open_doc(positionTE.position_common_id).TopElem;
+			gradesArray = positionCommonTE!=undefined? positionCommonTE.grades:[];
+			
+			maxGradeDoc = tools.open_doc(gradesArray[0].grade_id); 
+			for(elem in gradesArray){
+				gradeDoc = tools.open_doc(elem.grade_id);
+				maxGradeDoc =  gradeDoc.TopElem.level > maxGradeDoc.TopElem.level? gradeDoc:maxGradeDoc;
+			}
+			if( OptInt(gradeID) == OptInt(maxGradeDoc.DocID) && OptInt(data.generalMark) == 6){
+				txt_message = "Сотрудник достиг максимального уровня грейда для занимаемой должности. Согласно НД «Положению о системе РеМ» сотруднику может быть выплачена ТОЛЬКО премия в размере одного оклада, но соответствующее повышение УГ невозможно в рамках занимаемой должности. Данный случай будет рассмотрен ГД ГК в частном порядке.";
+				grade_meassages.push(txt_message)
+			}
+			
+			assessment_appraise_old= ArrayOptFirstElem(XQuery('for $x in assessment_appraises where contains($x/code,'+(Year(Date())-1)+') return $x'));
+			assessment_appraise_old_id = assessment_appraise_old!=undefined? assessment_appraise_old.id:undefined;
+			assessment_plan_old = ArrayOptFirstElem(XQuery('for $x in assessment_plans where $x/assessment_appraise_id = '+assessment_appraise_old_id+' and  $x/person_id ='+docAssessmentPlan.TopElem.person_id+' return $x'));
+			
+			if(assessment_plan_old!=undefined && OptInt(data.generalMark) == 6 && OptInt(assessment_plan_old.integral_mark)== 6 ){
+				txt_message = "Данный сотрудник получил аналогичную оценку за предыдущий период. Согласно НД «Положению о системе РеМ» получить оценку «А+» два года подряд нельзя. Данный случай будет рассмотрен ГД ГК в частном порядке.";
+				grade_meassages.push(txt_message);
+			}
+				
+		}
+		}catch(e){
+			alert('eee ' + e)
+			}
+		saveResult = {saved: true, checkResult: checkResult, message: grade_meassages};
+	}
+	else
+	{
+		alert("Нет прав для изменения формы оценки!");
+		saveResult = {saved: false, error: 'no rights'};
+	}
+
+	out( tools.object_to_text(saveResult, 'json') );
+}
+else if (action == 'saveComment')
+{
+	elemID = getFormValText('elem_id');
+	elemType = getFormValText('elem_type');
+	
+	commentText = getFormValText('comment_text');
+	
+	saveResult = saveComment(docPaResponse, docAssessmentPlan, elemID, elemType, commentText);
+	
+	out( tools.object_to_text(saveResult, 'json') );
+}
+else if (action == 'delegateBossRole')
+{
+	impersonatorID = getFormValInt('impersonator_id');
+	
+	if (delegateBossRole(impersonatorID, docAssessmentAppraise))
+		out('ok');
+}
+else if (action == 'undelegateMyBossRole')
+{	
+	if (undelegateMyBossRole(docAssessmentAppraise))
+		out('ok');
+}
+%>

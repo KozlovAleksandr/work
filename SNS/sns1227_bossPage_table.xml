@@ -1,0 +1,185 @@
+<%
+	baseGreen = "#06a478";
+	baseRed = "#E90935";
+
+	lightGreen = "#62D2B3";
+	lightRed = "#F6738D";
+
+	darkGreen = "#20896C";
+	darkRed = "#A0253D";
+
+	var numChild = curUserCanEdit ? 11 : 10;
+%>
+
+<style>
+.line td:nth-child(1), .line td:nth-child(<%=numChild%>){
+	background-color: <%=lightGreen%>;
+}
+.line td:nth-child(1) a, .line td:nth-child(<%=numChild%>) a{
+	color:white !important;
+}
+/*mpros*/
+.tr_declined td {
+	background-color:<%=lightRed%>!important;
+	color: white !important;
+}
+.tr_confirm td {
+	background-color:<%=lightGreen%>;
+}
+/*mpros*/
+</style>
+<div id="table-wrap">
+<table class="report" border="1">
+		<thead class="head">
+		<% if (curUserCanEdit) { %>
+			<th width="15px" class="col_check">
+				<input type="checkbox" class="checked_all_colls">
+			</th>
+		<% } %>
+			<th onclick="sortByColumn('person_fullname');" class="sortable">Фамилия сотрудника</th>
+			<th onclick="sortByColumn('person_position');" class="sortable">Должность</th>
+			<th onclick="sortByColumn('person_func_subdiv');" class="sortable">Ключевое подразделение</th>
+			<th onclick="sortByColumn('person_subdiv');" class="sortable">Подразделение</th>
+			<th onclick="sortByColumn('boss_fullname');" class="sortable">Функциональный руководитель</th>
+			<th onclick="sortByColumn('highmanager_fullname');" class="sortable">Вышестоящий руководитель</th>
+			<th onclick="sortByColumn('admmanager_fullname');" class="sortable">Административный руководитель</th>
+			<th onclick="sortByColumn('workflow_state_name');" class="sortable">Статус документа оценки</th>
+			<th onclick="sortByColumn('adm_mark');" class="sortable">Оценка ФР</th>
+			<th onclick="sortByColumn('advance_decision');" class="sortable">Предварительный статус решения</th>
+			<th onclick="sortByColumn('general_mark');" class="sortable">Итоговая оценка</th>			
+			<th onclick="sortByColumn('act_mark');" class="sortable">Оценка деятельности</th>
+			<th>Превышение грейда</th>
+			<th>Повторная оценка A+</th>
+			<th onclick="sortByColumn('comp_mark');" class="sortable">Оценка компетенций</th>
+			<th>Уволен</th>
+			<th>Комментарий<br>(не виден сотруднику)</th>
+		</thead>
+		<% for (line in result) { %>
+		<%  
+			
+		
+			_is_new = false;
+			curAssApDoc = tools.open_doc(line.assessment_appraise_id);
+			teAssessmentPlan =tools.open_doc(line.plan_id).TopElem;
+			if(curAssApDoc != undefined)
+			{
+				if(OptDate(curAssApDoc.TopElem.start_date) > OptDate("01.01.2021"))
+					_is_new = true;
+			}
+			assessmentDate = 
+			curUserCanViewAppForms = StrBegins(line.type, "app");
+			/*mpros*/
+			dynamic_high_manager_decision_class = "";
+			
+			
+			try
+			{
+				log_data = ArrayOptFind (ParseJson(ArrayOptFind(teAssessmentPlan.custom_elems,'This.name=="grade_change_log"').value),"This.boss_type=='func_boss'")
+				fr_mark = log_data!=undefined && log_data.grades!=undefined? log_data.grades.log_general_mark:'-';
+			} catch(e){
+				fr_mark = '-'
+			}
+			if (line.workflow_state_code != "FinApp_confirm_by_highboss")
+			{
+				if (line.advance_decision == 'Отклонить')
+					dynamic_high_manager_decision_class = "tr_declined";
+				else if (line.advance_decision == 'Утвердить')
+					dynamic_high_manager_decision_class = "tr_confirm";
+			}
+			/**/
+	
+			// collabTE = tools.open_doc(teAssessmentPlan.person_id).TopElem;	
+			collabTE = ArrayOptFirstElem(XQuery('for $elem in collaborators where $elem/id='+teAssessmentPlan.person_id+' return $elem'));
+			try{
+				positionTE = tools.open_doc(collabTE.position_id).TopElem;
+//				positionTE = ArrayOptFirstElem(XQuery('for $elem in positions where $elem/id='+collabTE.position_id+' return $elem'));
+				gradeID = positionTE != undefined ?  positionTE.custom_elems.ObtainChildByKey('grade_doc').value: undefined;
+				if(gradeID){
+					positionCommonTE =  tools.open_doc(positionTE.position_common_id).TopElem;
+//					positionCommonTE =  ArrayOptFirstElem(XQuery('for $elem in position_commons where $elem/id='+collabTE.position_id+' return $elem'));					
+					gradesArray = positionCommonTE != undefined ? positionCommonTE.grades : [];				
+					maxGradeDoc = tools.open_doc(gradesArray[0].grade_id); 
+					for(elem in gradesArray){
+						gradeDoc = tools.open_doc(elem.grade_id);
+						maxGradeDoc =  gradeDoc.TopElem.level > maxGradeDoc.TopElem.level ? gradeDoc : maxGradeDoc;
+					}
+					
+					overgrading = ( OptInt(gradeID) == OptInt(maxGradeDoc.DocID) && OptInt(line.general_mark) == 6)? "+" : "";
+					
+					assessment_appraise_old= ArrayOptFirstElem(XQuery('for $x in assessment_appraises where contains($x/code,'+(Year(Date())-1)+') return $x'));
+					assessment_appraise_old_id = assessment_appraise_old!=undefined? assessment_appraise_old.id:undefined;
+					assessment_plan_old = ArrayOptFirstElem(XQuery('for $x in assessment_plans where $x/assessment_appraise_id = '+assessment_appraise_old_id+' and  $x/person_id ='+teAssessmentPlan.person_id+' return $x'));
+					
+					reassigning_a = (assessment_plan_old!=undefined && OptInt(line.general_mark) == 6 && OptInt(assessment_plan_old.integral_mark)== 6 ) ? "+" : "";					
+				}
+			} catch(e){
+				alert('error: ' + e)
+			}
+				
+			
+		%>
+		<tr class="line <%=dynamic_high_manager_decision_class%>">
+			<% if (curUserCanEdit) { %>
+			<td class="col_check">
+				<% if (!EXPORT_MODE && line.editable) { %>
+					<input type="checkbox" class="checked_coll">
+					<input type="hidden" class="plan_id" value="<%=line.plan_id%>">
+				<% } %>
+			</td>
+			<% } %>
+			
+			<td>
+				<b>
+				<% if (curUserCanViewAppForms) { %>
+					<a class="coll_link" href="view_doc.html?mode=assessment_appraise&doc_id=&assessment_appraise_id=<%=line.assessment_appraise_id%>&f_id=&pa_id=<%=line.pa_act_id%>&assessment_appraise_type=activity_appraisal">
+						<%=line.person_fullname%>
+					</a>
+				<% } else { %>
+					<%=line.person_fullname%>
+				<% } %>
+				</b>
+			</td>
+			<td><%=line.person_position%></td>
+			<td><%=line.person_func_subdiv%></td>
+			<td><%=line.person_subdiv%></td>
+			<td><%=line.boss_fullname%></td>
+			<td><%=line.highmanager_fullname%></td>
+			<td><%=line.admmanager_fullname%></td>
+			<td><b><%=line.workflow_state_name%></b></td>
+			<td align="center"><b><%=_is_new ? convertActMarkToLetterExtended(line.general_mark) : convertActMarkToLetter(line.general_mark)%></b></td>
+			<td align="center">
+				<% if (line.workflow_state_code == "FinApp_confirm_by_highboss") { %>
+					<% if (!EXPORT_MODE && line.editable) { %>
+					
+						<select class="general_mark_val">
+									<option value="<%=line.general_mark%>"><%=_is_new ? convertActMarkToLetterExtended(line.general_mark) : convertActMarkToLetter(line.general_mark)%></option>
+									<option value="6">A+</option>
+									<option value="5">A</option>
+									<option value="4">A-</option>
+									<option value="3">B+</option>
+									<option value="2">B</option>
+									<option value="1">C</option>
+					 </select>
+					
+					<% } else { %>
+						 <%=line.advance_decision%>
+					<% } %>
+				<% } %>
+			</td>
+			<td align="center"><%=convertActMarkToLetterExtended(fr_mark)%></td>
+			<td align="center"><%=convertActMarkToLetter(line.act_mark)%></td>
+			<td align="center"><%=overgrading%></td>
+			<td align="center"><%=reassigning_a%></td>
+			<td align="center"><%=line.comp_mark > 5 ? 5 : line.comp_mark%>&nbsp;</td>
+			<td align="center"><%=(line.person_is_dismiss ? "V" : "")%></td>
+			<td>
+				<% if (!EXPORT_MODE && line.editable) { %>
+					<textarea class="comment"><%=line.comment%></textarea>
+				<% } else { %>
+					<%=line.comment%>
+				<% } %>
+			</td>
+		</tr>
+		<% } %>
+	</table>
+</div>

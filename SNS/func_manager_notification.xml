@@ -1,0 +1,17 @@
+<%
+function getPA(person_id, assessment_appraise_id)
+{
+	var xPA = ArrayOptFirstElem(XQuery("for $elem in pas where $elem/assessment_appraise_id = "+assessment_appraise_id+" and $elem/person_id = "+person_id+" and $elem/assessment_appraise_type='activity_appraisal' return $elem"));
+	return xPA.id;
+}
+_PORTAL_URL = global_settings.settings.portal_base_url;
+curPA = getPA(objDocSec.person_id, objDocSec.assessment_appraise_id);
+_PORTAL_URL = _PORTAL_URL+"/view_doc.html?mode=assessment_appraise&doc_id=&assessment_appraise_id="+objDocSec.assessment_appraise_id+"&f_id=&pa_id="+curPA+"&assessment_appraise_type=activity_appraisal";
+alert(_PORTAL_URL)
+%>
+
+
+<p>Добрый день</p> 
+
+<p>Ваш руководитель изменил оценку в плане оценки (Performance management)</p>
+<p>При необходимости Вы можете ознакомиться с изменением по <a href="<%=_PORTAL_URL%>">ссылке</a>.</p>
