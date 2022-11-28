@@ -1,0 +1,495 @@
+<%
+var aRes=[];
+var site_id = OptInt(Request.Form.GetOptProperty( "site_id" ),0);
+var filials_id = OptInt(Request.Form.GetOptProperty( "filials_id" ),0);
+var sub_id = OptInt(Request.Form.GetOptProperty( "sub_id" ),0);
+var score_id = OptInt(Request.Form.GetOptProperty( "score_id" ),'');
+
+//alert("site_id - " + site_id)
+
+
+//var _allowed_tests = [];
+
+
+var _allowed_score=[];
+var _allowed_tests_ids = 0;
+var _allowed_filials_ids =0
+var _allowed_subs_ids=0;
+var _allowed_scores_ids=0;
+
+var _is_admin = false;
+/*для локального тестирования*/
+_allowed_tests = XQuery("for $elem in cc_mars_sites return $elem"); 
+_allowed_areas = XQuery("for $elem in cc_mars_areas return $elem"); 
+_allowed_assignment = XQuery("for $elem in documents where MatchSome($elem/parent_document_id,7168371013996853344) return $elem"); 
+
+
+
+_allowed_tests_ids = ArrayMerge(_allowed_tests,'This.id',';');
+_allowed_area_ids = ArrayMerge(_allowed_areas,'This.id',';');
+_allowed_assignment_ids = ArrayMerge(_allowed_assignment,'This.id',';');
+
+
+
+
+
+if (Trim(_allowed_tests_ids) == '')
+{
+	_allowed_tests_ids = 0;
+	test_id = undefined;
+	Request.Form.SetProperty("site_id", "0");
+	Request.Form.SetProperty("area_id_id", "0");
+	Request.Form.SetProperty("area_name", "");
+
+}
+
+//tools_web.remove_user_data("excel_html_" + curUserID);
+//tools_web.set_user_data( "excel_html_" + curUserID , { "html": Excel_html }, 86000 ); 
+
+var xls_url = "";
+var show_answer = false;
+
+var array_of_assessments = [];
+_xqual = "";
+//_xqual+=' and $elem/assessment_id='+test_id;
+teDocPerson=curUser;
+
+
+%>
+<script>
+/*
+let form = document.getElementById('main');
+let button = document.getElementById('clean');
+alert(123);
+button.addEventListener('click', () => form.reset());
+*/
+
+
+function showPreloader(element) {
+	element.classList.toggle("preloader");
+}						
+
+function send_fil_param(action)
+			{	
+				var preloader = document.querySelector('.preloader-remove');
+
+				//alert('ajax отправка');			
+				//_for_change=_id_fil;
+
+				showPreloader(preloader)
+
+				coll = [];
+				if(action == 'change_list')
+				{
+					$('.rec_table input:checkbox:checked').each(function(){
+						//console.log($(this).attr("name"));
+						coll.push($(this).attr("name"));
+					});
+					//console.log(coll);
+				}
+				
+				var _id_site = $("#site_id").val();
+				var _id_area = $("#area_id").val();
+				var _id_assignment = $("#assignments_id").val();
+
+				console.log('assignment '+_id_assignment+' site '+_id_site+' area '+_id_area + ' action ' + action);
+				$.ajax({
+					async: true,
+					url: "custom_web_template.html?object_code=mars_acquaint_assign_ajax",   
+					data:{
+						action : action,
+						//id_list: _id_fil
+						coll: JSON.stringify(coll),					
+						site_id: btoa(_id_site),
+						area_id: btoa(_id_area),
+						assignment_id: btoa(_id_assignment)
+					},
+					type: "POST",
+					dataType: "json",
+
+					success: function(response) {
+						var resp = JSON.stringify(response);
+						//console.log(resp);
+						if(resp == 'true')
+						{
+							alert('Ознакомление назначено.');
+							$('#records_table').empty();
+							$('#chk').empty();
+						}else if(resp == 'false')
+						{
+							alert('Ознакомление не назначено.');
+						}else if(resp == '"answer"')
+						{
+							alert('Введите ознакомлени материала');
+						}else
+						{
+							$('#records_table').empty();
+							$('#chk').empty();
+							$('#chk').append('<input type="checkbox"/> Отметить/снять все');
+							$(function() {
+								$('<tr class="rec_table">').append(
+									$('<th class="rec_table fullname">').text('ФИО'),
+									$('<th class="rec_table">').text('Должность'),
+									$('<th class="rec_table">').text('Материал для Ознакомления'),
+									$('<th class="rec_table">').text('Сайт'),
+									$('<th class="rec_table">').text('Участок'),
+									$('<th class="rec_table assign">').text('Назначение'),
+									$('<th class="rec_table">').text('Выбрать'),
+								).appendTo('#records_table');
+								$.each(JSON.parse(resp), function(i, item) {
+									var $tr = $('<tr class="rec_table">').append(
+										$('<td class="rec_table fullname">').text(item.fullname),
+										$('<td class="rec_table">').text(item.post),
+										$('<td class="rec_table">').text(item.assignment),
+										$('<td class="rec_table">').text(item.site),
+										$('<td class="rec_table">').text(item.area),
+										$('<td class="rec_table assign">').text(item.assign),
+										$('<td class="rec_table">').append('<input type="checkbox" name="'+item.fullname+'" />'),
+									).appendTo('#records_table');
+								});
+							});
+						}
+						showPreloader(preloader)
+					//alert('resp '+JSON.stringify(response));
+					//response=String(response)
+					// $("#pos_sub").attr("onClick","show('Подразделение', 'sub_id', 'sub_name', 'subdivision', "+JSON.stringify(response)+" , 0, false)");
+					// console.log('done');
+					//console.log($('#main:input[id=pos_sub]'));
+					//$('main:input[id=pos_sub]').onClick.value='show('Подразделение', 'sub_id', 'sub_name', 'subdivision', response, 0, false)';
+					},
+					error: function() {
+						if (jqXHR.status === 403) {
+							alert('Запрещено. У вас нет прав доступа к содержимому. (403)');
+						} else if (jqXHR.status == 404) {
+							alert('Запрошенная страница не найдена (404).');
+						} else if (jqXHR.status == 500) {
+							alert('Внутренняя ошибка сервера (500).');
+						} else if (exception === 'parsererror') {
+							alert('Ошибка анализа JSON.');
+						} else if (exception === 'timeout') {
+							alert('Тайм-аут.');
+						} else if (exception === 'abort') {
+							alert('Выполнение запроса Ajax прервано.');
+						} else {
+							alert('Неизвестная ошибка. ' + jqXHR.responseText);
+						}
+						showPreloader(preloader)	
+					},
+				});	
+				
+			}
+
+
+	function show( title, inputIds, inputNames, catalog, disp_object_ids,m_sel,q_param )
+{
+    //console.log('title '+title+' inputIds '+inputIds+' inputName '+inputNames+' catalog '+catalog+' disp_object_ids '+disp_object_ids+' m_sel '+m_sel+' q_param '+q_param );
+	var pars=new Object();
+	pars.title = title;
+	var strAttr="status:no;dialogWidth:750px;dialogHeight:580px;help:no";
+	
+	pars.elemNamesArray = Array();
+	
+	var i = 0;
+
+	ids = "";
+	arr = document.forms['main'][inputIds].value.split(',');
+	//console.log(arr);
+	for ( i=0; i<arr.length; i++ )
+	{
+		if ( arr[i] == '' ) continue;
+		ids += ";" + arr[i];
+	}
+	
+	pars.selected_object_ids = ids;
+	pars.display_object_ids = disp_object_ids;
+	arr = document.forms['main'][inputNames].value.split("|");
+	for ( i=0; i<arr.length; i++ )
+	{
+		pars.elemNamesArray[i] = arr[i];
+	}
+	
+	
+	
+	xShowDialog( 'dlg_select_inline.html', 
+	{
+		"catalog_name": catalog,
+		"multi_select": m_sel,
+		"can_be_empty": "true",
+		"disp_filter": "false",
+		"check_access": "false",
+		"display_object_ids": disp_object_ids,
+		"selected_object_ids": ids
+	}, 
+	{
+		height: 550,
+		width: 750,
+		minHeight: 400,
+		minWidth: 550,
+		after_open: function() 
+		{
+			getElems();
+			setDivHeight();
+			$("#ui-dialog-title-my-dialog").prepend("<span style='padding-left: 3px'><b>"+title+"</b></span>");
+		},
+		resizeStop: function(event, ui) 
+		{
+			setDivHeight();
+		}
+	}, 
+	function(oParams)
+	{
+		id_mas = oParams.selected_object_ids.split(";");
+
+		if (!oParams.handle) return null;
+
+		names = "";
+		ids = "";
+		id_ar = oParams.selected_object_ids.split(";");
+		isFirst = true;
+		for (i=0;i<id_ar.length;i++)
+		{
+			if ( id_ar[i] == "" || id_ar[i] == null ) continue;
+			ids += ( isFirst ? '' : ',' ) + id_ar[i];
+			isFirst = false;
+		}
+		for (i=0;i<oParams.elemNamesArray.length;i++)
+		{
+			if( oParams.elemNamesArray[i]!=null )
+			names += ( i != 0 ? "|" : "" ) + oParams.elemNamesArray[i];
+		}
+		
+		
+		
+		if (document.forms['main'][inputIds].value != ids)
+		{
+			document.forms['main'][inputIds].value = ids;
+			document.forms['main'][inputNames].value = names;
+		
+		}
+		
+		if(q_param==true)
+		{
+			send_fil_param(ids);
+			
+		}
+		
+	});
+}
+function form_submit()
+{
+	document.forms['main'].submit();
+}
+
+function do_submit()
+{
+	document.forms['main']['is_posted'].value = "1";
+	document.forms['main'].submit();
+}
+</script>
+<style>
+.report-conainer {
+	width:1280px;
+	margin:auto;
+	overflow:scroll;
+}
+.report-error-container {
+	width: 100%;
+	margin: auto;
+	color: red;
+	font-weight: 800;
+	font-size: 24px;
+	text-align: center;
+	opacity: 0.4;
+}
+.report-conainer table {
+	font-size: 12px;
+	border: none;
+}
+.report-conainer table td {
+	border: none;
+	padding: 7px;
+}
+
+.btn-panel1 {
+	float:left;
+	margin: auto;
+	width: 100%;
+	height: 15%;
+}
+.btn-panel2 {
+	float:left;
+	margin: auto;
+	width: 100%;
+	height: 25%;
+}
+.btn {
+	width: 140px;
+	border: none !important;
+	background-color: #c1c0c0 !important;
+	padding: 10px !important;
+	color: white !important;
+}
+.btn:hover {
+	opacity: 0.7 !important;
+}
+.nowrap-rows {
+	text-align:center;
+	white-space:nowrap;
+}
+#main { 
+	min-height: 150px;
+	margin: auto;
+}
+
+.rec_table{
+border: 1px solid #d8d8d8 !important;
+border-collapse: collapse !important;
+}
+#chk{
+	margin-top: 50px;
+}
+#records_table{
+	margin-top: 10px;
+	width: 100%;
+	border: none;
+	margin-bottom: 20px;
+	
+}
+.rec_table {
+// width: 100%;
+border: none;
+margin-bottom: 20px;
+}
+.rec_table th {
+	font-weight: bold;
+	text-align: left;
+	border: none;
+	padding: 10px 15px;
+	background: #d8d8d8;
+	font-size: 14px;
+	border-left: 1px solid #ddd;
+	border-right: 1px solid #ddd;
+}
+
+.rec_table td {
+	text-align: left;
+	border-left: 1px solid #ddd;
+	border-right: 1px solid #ddd;
+	padding: 10px 15px;
+	font-size: 14px;
+	vertical-align: top;
+}
+
+th .rec_table.fullname {
+	width: 360px;
+}
+th .rec_table.assign {
+	width: 110px;
+}
+tr .rec_table.fullname {
+	width: 360px;
+}
+tr .rec_table.assign {
+	width: 110px;
+}
+
+.rec_table tr th:first-child, .table tbody tr td:first-child {
+	border-left: none;
+}
+.rec_table tr th:last-child, .table tbody tr td:last-child {
+	border-right: none;
+}
+.rec_table tr:nth-child(even){
+	background: #f3f3f3;
+}
+
+/*preloader*/
+.preloader {
+    display: block;
+    position: relative;
+    width: 150px;
+    height: 150px;
+    margin: 30px auto;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #337AB7;
+    animation: preloader-spin 2s linear infinite;
+}
+.preloader:before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    right: 5px;
+    bottom: 5px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #BFE2FF;
+    animation: preloader-spin 3s linear infinite;
+}
+.preloader:after {
+    content: "";
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    right: 15px;
+    bottom: 15px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #337AB7;
+    animation: preloader-spin 1.5s linear infinite;
+}
+@keyframes preloader-spin {
+    0%   {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+</style>
+
+
+
+
+	<form id="main" name="main" action="<%=XmlAttrEncode( Request.Url )%>" METHOD="POST">
+		<input type="hidden" name="is_posted" value="<%=( Request.Form.HasProperty( "is_posted" ) ? Request.Form.is_posted : "" )%>">
+		<div class="btn-panel1">
+			<input type="button" style="width: 180px;" value="Сайт" class="btn" onClick="show('Сайт', 'site_id', 'test_name', 'cc_mars_site', '<%=_allowed_tests_ids%>', 0, false)">
+			<input type="text" readonly name="test_name" value="<%=( Request.Form.HasProperty( "test_name" ) ? Request.Form.test_name : "" )%>" size="25"><br>
+			<input type="hidden" name="site_id" id="site_id" value="<%=( Request.Form.HasProperty( "site_id" ) ? Request.Form.site_id : "" )%>">
+			
+			<input type="button" style="width: 180px;" value="Участок" class="btn" onClick="show('Участок', 'areas_id', 'area_name', 'cc_mars_area', '<%=_allowed_area_ids%>', 0, false)">
+			<input type="text" readonly name="area_name" value="<%=( Request.Form.HasProperty( "area_name" ) ? Request.Form.area_name : "" )%>" size="25"><br>
+			<input type="hidden" name="areas_id" id="area_id" value="<%=( Request.Form.HasProperty( "areas_id" ) ? Request.Form.areas_id : "" )%>">
+
+            <input type="button" style="width: 180px;" value="Материал для назначения" class="btn" onClick="show('Назначение', 'assignment_id', 'assignment_name', 'document', '<%=_allowed_assignment_ids%>', 0, false)">
+            <input type="text" readonly name="assignment_name" value="<%=( Request.Form.HasProperty( "assignment_name" ) ? Request.Form.assignment_name : "" )%>" size="25"><br>
+            <input type="hidden" name="assignment_id" id="assignments_id" value="<%=( Request.Form.HasProperty( "assignments_id" ) ? Request.Form.assignments_id : "" )%>">
+		</div>
+					
+			<input type="button" value="Назначить" onClick="send_fil_param('change_list');" class="btn">
+			<input type="button" value="Показать" onClick="send_fil_param('show_list');" class="btn">
+			<!--<input type="button" value="Экспорт в Excel" onclick="modalWin=window.open('assessment_excel_export.html','','')" class="btn">-->
+			<!--input type="button" value="Экспорт в Excel" onclick="modalWin=window.open('/assessment_excel_export.html?mode=htmlfileurl&htmlfileurl=<%=xls_url%>','','')" class="btn"-->		
+	</form>
+
+	<%
+	//Response.Write(_table);
+	%>
+	<div id="chk"></div>
+	<table id="records_table" class="rec_table"></table>
+	<div class="preloader-remove"></div>
+
+
+<script>
+	$("#chk").click(function(){
+		//console.log(this);
+		if ($(this).find(">:first-child").is(':checked')){
+			$('#records_table input:checkbox').prop('checked', true);
+		} else {
+			$('#records_table input:checkbox').prop('checked', false);
+		}
+	});
+</script>
+<!--<%=ArrayCount(XQuery("for $elem in positions where doc-contains($elem/id,'wt_data','[position_site="+OptInt('0x5F25DAAD28D736D8')+"~string]') return $elem"));%> -->

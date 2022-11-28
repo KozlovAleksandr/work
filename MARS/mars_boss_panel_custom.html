@@ -1,0 +1,2290 @@
+<%
+	//доступ на страницу Панель руководителя
+	str = "for $m in func_managers,";
+	str+= " $b in boss_types";
+	str+= " where $m/boss_type_id = $b/id";
+	str+= " and $b/code = 'main'";
+	str+= " and $m/catalog = 'collaborator'";
+	str+= " and $m/person_id = " + curUserID;
+	str+= " and $m/object_id != null()";
+	str+= " return $m";
+
+	is_LM = ( ArrayCount(XQuery(str)) > 0 ? true : false );
+
+	is_AS = false; // Отношение к категории AS
+
+	is_S = false; // Отношение к сайтам MIR || NOV || LUZ || RND || OKF
+
+	has_FM = false; // Есть функциональный руководитель
+
+	FM = undefined; // Функциональный руководитель
+
+	is_SC = false; // SC экспрет
+
+	site_id = ""; // Сайт SC эксперта
+
+	// Если не руководитель, то смотрим по другим критериям
+
+	curUserDoc = OpenDoc(UrlFromDocID( curUserID )).TopElem;
+
+	is_AS = ArrayOptFind(curUserDoc.category_id, "This == 'as'") != undefined;
+
+    groupID = 7165557768812309080;  // Группа ознакомления
+    groupDoc = OpenDoc(UrlFromDocID( groupID )).TopElem;
+    is_Access = ArrayOptFind(groupDoc.collaborators, "This.collaborator_id == "+ curUserID) != undefined;
+
+	var positionID;
+	var positionDoc;
+	var positionSiteID = 0;
+
+	if (curUserDoc.position_id.HasValue)
+	{
+		positionID = curUserDoc.position_id;
+		positionDoc = OpenDoc(UrlFromDocID( positionID )).TopElem;
+
+		positionSiteID = positionDoc.custom_elems.ObtainChildByKey("position_site").value;
+
+		is_S = ArrayCount(XQuery("for $elem in cc_mars_sites where $elem/id = " + positionSiteID + " and MatchSome($elem/name, ('MIR', 'NOV', 'LUZ', 'RND', 'OKF', 'STP')) return $elem")) > 0;
+	}
+
+	str =	"for $m in func_managers,";
+	str+=	" $b in boss_types";
+	str+=	" where $m/boss_type_id = $b/id";
+	str+=	" and $b/code = 'main'";
+	str+=	" and $m/catalog = 'collaborator'";
+	str+=	" and $m/object_id = " + curUserID;
+	str+=	" return $m";
+
+	FM = XQuery(str);
+
+	FM_ids = ArraySelectDistinct(ArrayExtract(FM, "This.person_id"));
+
+	has_FM = ArrayOptFirstElem(FM_ids) != undefined;
+
+	is_SC = ArrayOptFind(curUserDoc.category_id, "This == 'sc_expert'") != undefined;
+
+	site_obj = ArrayOptFirstElem(XQuery("for $elem in cc_mars_sites where $elem/id = " + positionSiteID + " return $elem"), { id: { Value: 0 }, name: { Value: "" }});
+	site_name = site_obj.name.Value;
+	site_id = OptInt(site_obj.id.Value, 0);
+
+user_id = "";
+
+try
+{
+	if (is_AS && has_FM)
+	{
+		user_id = curUserID + "," + ArrayMerge(FM_ids, "OptInt(This, 0)", ",");
+	}	
+	else if (is_LM)
+	{
+		user_id = String(curUserID);
+	}
+	else 
+	{
+		user_id = "";
+	}	
+}
+catch(ex)
+{
+	user_id = "";
+}
+
+
+if ( is_LM || ( is_AS && is_S && has_FM ) || (is_SC && site_id != 0))
+{
+	options = {
+		cwt: {
+			collaborators: ArrayOptFirstElem(XQuery("for $elem in custom_web_templates where $elem/code = 'mars_boss_panel_collaborators' return $elem"), {id: {Value: 0}}).id.Value,
+			session_shedule_result: ArrayOptFirstElem(XQuery("for $elem in custom_web_templates where $elem/code = 'mars_boss_panel_session_shedule' return $elem"), {id: {Value: 0}}).id.Value,
+			request_states_result: ArrayOptFirstElem(XQuery("for $elem in custom_web_templates where $elem/code = 'mars_boss_panel_request_states' return $elem"), {id: {Value: 0}}).id.Value,
+			excel_test_result: ArrayOptFirstElem(XQuery("for $elem in custom_web_templates where $elem/code = 'mars_test_result_excel' return $elem"), {id: {Value: 0}}).id.Value
+		}
+	}
+
+	// время берется серверное, потому что некоторые сотрудники работают в другом часовом поясе.
+	now = new Date();
+	next_month = StrDate(DateOffset(now, 30 * 86400), false, false);
+
+	next_month_test = new Date();
+	now_test = DateOffset(next_month_test, (0 - 1) * 30 * 86400);
+	next_month_test = StrDate(next_month_test, false, false);
+
+	// отчеты
+	boss_panel_report_codes = ArrayExtract(boss_panel_reports.split(";"), "return \"'\" + This + \"'\"");
+	report_obj_arr = [];
+
+	if (ArrayCount(boss_panel_report_codes) > 0)
+	{
+		report_obj_arr = ArrayExtract(XQuery("for $elem in custom_web_templates where MatchSome($elem/code, (" + boss_panel_report_codes.join(",") + ")) return $elem"), "return {id: This.id.Value, name: StrReplaceOne(This.name.Value, 'Марс - ', '')}");
+	}
+%>
+<div class="m-heading-wrap">
+	<h2>Панель руководителя</h2>
+	<a id="req_modal_btn" class="m-plus-btn m-plus-btn-head">Подать заявку на программу обучения</a>
+	<a style="right: 340px;" id="qual_req_modal_btn" class="m-plus-btn m-plus-btn-head open-modal" data-href="#modal_qual_level">Подать заявку на новый уровень</a>
+</div>
+<div class="main-child-b padding-xs">
+	<div class="m-head-filters-wrap m-head-filters-wrap-pos">
+		<div class="m-head-filters-line">
+			<a href="javascript:;" class="active line-bottom" data-attr="collaborators">Сотрудники</a>
+			<!--<a href="javascript:;" data-attr="session_shedule">Расписание сессий</a>-->
+			<a href="javascript:;" data-attr="request_states">Статусы заявок<br> на обучение</a>
+			<a href="javascript:;" data-attr="test_result">Результаты тестов</a>
+			<a href="javascript:;" data-attr="dismissal_orders">Приказы об<br> отстранении</a>
+			<a href="javascript:;" data-attr="course_orders">Распоряжения<br> о допуске LOTO</a>
+			<% if (site_name == 'NOV') { %><a href="javascript:;" data-attr="internship">Стажировки</a><% } %>
+			<% if (ArrayCount(report_obj_arr) > 0) { %><a href="javascript:;" class="" data-attr="reports">Отчеты</a><% } %>
+            <% if (is_Access) { %>
+                <a href="/view_doc.html?mode=mars_acquaint_assign_" data-attr="_null"> Ознакомления </a>
+            <% } %>
+		</div>
+	</div>
+	<div class="boss-panel-filter" data-attr="collaborators">
+		<div class="filters-row filters-row-pos">
+			<div class="filters-item">
+				<a class="filters-clear filters-clear-fs" href="javascript:;" id="clear_collaborator_filter">Очистить фильтры</a>
+			</div>
+		</div>
+		<div class="input-wrap input-wrap-search">
+			<input class="js-input m-input m-input_half" type="text" id="collaborator_search" value="">
+			<i class="m-zoom"></i>
+			<div class="m-placeholder m-placeholder-lh">Поиск по имени</div>
+		</div>
+		<div class="m-chips-wrap">
+			<div class="m-chips-line-grey">
+				<span>Квалификация</span>
+				<div class="m-chips-row" id="qual_type_filter">
+					<div class="m-chips-item active" data-attr=""><span>Все</span></div>
+					<div class="m-chips-item m-color-green" data-attr="active"><span>Действует</span></div>
+					<div class="m-chips-item m-color-orange" data-attr="require_confirmation"><span>Требует подтверждения</span></div>
+					<div class="m-chips-item m-color-orange" data-attr="in_process"><span>В процессе получения</span></div>
+					<div class="m-chips-item m-color-red" data-attr="overdue"><span>Просрочена</span></div>
+				</div>
+			</div>
+		</div>
+		<div class="btn-wrap"> 
+			<button class="m-btn m-btn-boss-panel" id="load_collaborators">Сформировать список</button>
+		</div>
+		<div class="m-word m-word-wrap" id="collaborator_count">Найдено: <span>0</span></div>
+	</div>
+	<div class="boss-panel-filter" data-attr="session_shedule" style="display: none;">
+		<div class="filters-row filters-row-pos">
+			<div class="filters-item"><a class="filters-clear filters-clear-fs" href="javascript:;" id="clear_session_filter">Очистить фильтры</a></div>
+		</div>
+		<div class="input-wrapper">
+			<span>Срок</span>
+			<div class="input-container datepicker">
+				<span class="before_datepicker_from">c</span>
+				<input style="padding-left: 20px" type="text" id="date_from" readonly="readonly" value="<%=StrDate(now, false, false)%>">
+			</div>
+			<div class="input-container datepicker">
+				<span class="before_datepicker_to">по</span>
+				<input style="padding-left: 30px" type="text" id="date_to" readonly="readonly" value="<%=next_month%>">
+			</div>
+		</div>
+		<div class="m-chips-wrap">
+			<div class="m-chips-line-green">
+				<span>Тип</span>
+				<div class="m-chips-row" id="session_type_filter">
+					<div class="m-chips-item active" data-attr=""><span>Все</span></div>
+					<div class="m-chips-item" data-attr="'test'"><i class="m-chips-test"></i><span>Тестирование</span></div>
+					<div class="m-chips-item" data-attr="'training'"><i class="m-chips-training"></i><span>Тренинг в классе</span></div>
+					<div class="m-chips-item" data-attr="'practice'"><i class="m-chips-practice"></i><span>Практика</span></div>
+					<div class="m-chips-item" data-attr="'exam'"><i class="m-chips-attestation"></i><span>Аттестация с комиссией</span></div>
+					<div class="m-chips-item" data-attr="'interview'"><i class="m-chips-interview"></i><span>Собеседование</span></div>
+				</div>
+			</div>
+			<div class="m-chips-line-grey">
+				<span>Статус</span>
+				<div class="m-chips-row" id="session_status_filter">
+					<div class="m-chips-item active" data-attr=""><span>Все</span></div>
+					<div class="m-chips-item" data-attr="'plan'"><span>Планируется</span></div>
+					<div class="m-chips-item" data-attr="'active'"><span>Проводится</span></div>
+					<div class="m-chips-item" data-attr="'close'"><span>Завершено</span></div>
+					<div class="m-chips-item" data-attr="'cancel'"><span>Отменено</span></div>
+				</div>
+			</div>
+		</div>
+		<div class="filters-list filters-wrap">
+			<div class="filters-item">
+				<a href="javascript:;" class="filters-btn" id="collaborator_button">Сотрудник (все)</a>
+				<div class="filters-chosen" id="collaborator_filter"></div>
+			</div>
+		</div>
+		<div class="m-word m-word-wrap" id="session_shedule_count">Найдено: <span>0</span></div>
+	</div>
+	<div class="boss-panel-filter" data-attr="request_states" style="display: none;">
+		<div class="filters-row filters-row-pos">
+			<div class="filters-item"><a id="clear_request_filter" class="filters-clear filters-clear-fs" href="javascript:;">Очистить фильтры</a></div>
+		</div>
+		<div class="m-chips-wrap m-chips-wrap-pos">
+			<div class="m-chips-line-grey">
+				<span>Тип</span>
+				<div class="m-chips-row" id="request_type_filter">
+					<div class="m-chips-item active" data-attr=""><span>Все</span></div>
+					<div class="m-chips-item" data-attr="request_activate_program"><span>Заявки на добавление тренинг-программы</span></div>
+					<div class="m-chips-item" data-attr="request_deactivate_program"><span>Заявки на закрытие тренинг-программы</span></div>
+					<div class="m-chips-item" data-attr="request_qual_level"><span>Заявки на получение уровня</span></div>
+				</div>
+			</div>
+			<div class="m-chips-line-grey">
+				<span>Статус</span>
+				<div class="m-chips-row" id="request_status_filter">
+					<div class="m-chips-item active" data-attr=""><span>Все</span></div>
+					<div class="m-chips-item" data-attr="4"><span>Новая</span></div>
+					<div class="m-chips-item" data-attr="1"><span>Согласована SC экспертом</span></div>
+					<div class="m-chips-item" data-attr="3"><span>Отклонена SC экспертом</span></div>
+					<div class="m-chips-item" data-attr="2"><span>Частично согласована SC экспертом</span></div>
+				</div>
+			</div>
+		</div>
+		<div class="input-wrap input-wrap-search">
+			<input class="js-input m-input m-input_half" type="text" id="request_search" value="">
+			<i class="m-zoom"></i>
+			<div class="m-placeholder m-placeholder-lh">Поиск по имени</div>
+		</div>
+		<div class="m-word m-word-wrap" id="request_states_count">Найдено: <span>0</span></div>
+	</div>	
+	<div class="boss-panel-filter" data-attr="test_result" style="display: none;">
+		<div class="filters-row filters-row-pos">
+			<div class="filters-item"><a id="clear_test_filter" class="filters-clear filters-clear-fs" href="javascript:;">Очистить фильтры</a></div>
+		</div>
+		<div class="input-wrapper">
+			<span>Срок</span>
+			<div class="input-container datepicker">
+				<span class="before_datepicker_from">c</span>
+				<input style="padding-left: 20px" type="text" id="test_date_from" readonly="readonly" value="<%=StrDate(now_test, false, false)%>">
+			</div>
+			<div class="input-container datepicker">
+				<span class="before_datepicker_to">по</span>
+				<input style="padding-left: 30px" type="text" id="test_date_to" readonly="readonly" value="<%=next_month_test%>">
+			</div>
+		</div>
+		<div class="m-relative">
+			<div class="m-select-wrap m-select-lim">
+				<span>Сотрудник<sup>*</sup></span>
+				<div id="collab-test-result" class="m-pseudo-select">&lt;не выбрано&gt;</div>
+			</div>
+		</div>
+		<div class="m-relative">
+			<div class="m-select-wrap m-select-lim">
+				<span>Тест<sup>*</sup></span>
+				<div id="test-test-result" class="m-pseudo-select">&lt;не выбрано&gt;</div>
+			</div>
+		</div>
+		<div class="download-excel-wrap" style="display: none;">
+			<div id="send-excel-test-result" class="download-excel download-excel-mod""><span class="m-green">Выгрузить</span></div>
+		</div>
+	</div>
+	<div class="boss-panel-filter" data-attr="dismissal_orders" style="display: none;">
+		<div class="filters-row filters-row-pos">
+			<div class="filters-item">
+				<a class="filters-clear filters-clear-fs" href="javascript:;" id="clear_order_filter">Очистить фильтры</a>
+			</div>
+		</div>
+		<div class="filters-row filters-row-ext">
+			<div class="filters-item">
+				<a href="javascript:" class="filters-btn" id="training_program_button">Тренинг-программа</a>
+				<div class="filters-chosen" id="training_program_filter"></div>
+			</div>
+		</div>
+		<div class="input-wrap input-wrap-search">
+			<input class="js-input m-input m-input_half" type="text" id="order_search" value="">
+			<i class="m-zoom"></i>
+			<div class="m-placeholder m-placeholder-lh">Поиск по имени</div>
+		</div>
+		<div class="m-word m-word-wrap" id="order_count">Найдено: <span>0</span></div>
+	</div>
+	<div class="boss-panel-filter" data-attr="course_orders" id="course_orders" style="display: none;">
+		<div class="filters-row filters-row-pos">
+			<div class="filters-item">
+				<a class="filters-clear filters-clear-fs" href="javascript:;" id="clear_course_order_filter">Очистить фильтры</a>
+			</div>
+		</div>
+		<form id="course_protocol_form" action="/custom_web_template.html?object_code=mars_boss_panel_course_order_print" target="_blank" method="post">
+			<div class="input-wrapper">
+				<input type="hidden" id="site_id" name="site_id" readonly="readonly">
+				<input type="hidden" id="user_id" name="user_id" readonly="readonly">
+				<span>Срок</span>
+				<div class="input-container datepicker">
+					<span class="before_datepicker_from">c</span>
+					<input style="padding-left: 20px" type="text" id="course_date_from" name="course_date_from" readonly="readonly">
+				</div>
+				<div class="input-container datepicker">
+					<span class="before_datepicker_to">по</span>
+					<input style="padding-left: 30px" type="text" id="course_date_to" name="course_date_to" readonly="readonly">
+				</div>
+			</div>
+		</form>
+		<div class="btn-wrap"> 
+			<button class="m-btn m-btn-boss-panel" id="course_protocol_btn">Скачать распоряжение</button>
+		</div>
+	</div>
+	<div class="boss-panel-filter" data-attr="reports" id="reports" style="display: none;">
+		<ul class="report-list-page">
+		<%
+			for (obj in report_obj_arr)
+			{
+		%>
+			<li><a class="report-link" href="/view_doc.html?mode=doc_type&object_id=<%=obj.id%>"><%=obj.name%></a></li>
+		<%
+			}
+		%>
+			<li><a id="btn-form-internships" class="report-link" href="javascript:;">Отчет о стажировках</a></li>
+		</ul>
+	</div>
+	<div class="boss-panel-filter" data-attr="internship" style="display: none;">
+		<div class="filters-row filters-row-pos">
+			<div class="filters-item">
+				<a class="filters-clear filters-clear-fs" href="javascript:;" id="clear_internship_filter">Очистить фильтры</a>
+			</div>
+		</div>
+		<div class="filters-row filters-row-ext">
+			<div class="filters-item">
+				<a href="javascript:" class="filters-btn" id="area_button">Участок</a>
+				<div class="filters-chosen" id="area_filter"></div>
+			</div>
+		</div>
+		<div class="input-wrap input-wrap-search">
+			<input class="js-input m-input m-input_half" type="text" id="internship_search" value="" placeholder="Поиск по ФИО">
+			<i class="m-zoom"></i>
+			<div class="m-placeholder m-placeholder-lh"></div>
+		</div>
+		<div class="btn-wrap"> 
+			<button class="m-btn m-btn-boss-panel" id="load_internships">Сформировать список</button>
+		</div>
+		<div class="m-word m-word-wrap" id="internship_count">Найдено: <span>0</span></div>
+	</div>
+</div>
+<div class="m-boss-wrap boss-panel-filter  m-internship" data-attr="internship" id="internship" style="display: none;">
+	<div class="m-boss-head">
+		<div class="m-boss-col-1 m-worker">ФИО</div>
+		<div class="m-boss-col-2 m-worker">Сайт</div>
+		<div class="m-boss-col-3 m-worker">Корректный участок</div>
+		<div class="m-boss-col-4 m-worker">Должность</div>
+		<div class="m-boss-col-5 m-worker">Смена</div>
+		<div class="m-boss-col-6 m-worker">Email</div>
+	</div>
+
+	<div class="m-boss-body" id="internship-body"></div>
+
+	<div class="report-saving-wrap" id="panel-save-btn" style="display: none;">
+        <div class="report-saving">
+            <a class="report-saving-btn item-save" id="save_internship">Сохранить изменения</a>
+            <span>или</span>
+            <a class="report-saving-btn" id="cancel_internship">Отменить</a>
+        </div>
+	</div>
+</div>
+<div class="m-boss-wrap boss-panel-filter" data-attr="collaborators" style="display: none;">
+	<div class="m-boss-head">
+		<div class="m-boss-col-1 m-worker">Сотрудник</div>
+		<div class="m-boss-col-2 m-worker">Сайт</div>
+		<div class="m-boss-col-3 m-worker">Корректный участок</div>
+		<div class="m-boss-col-4 m-worker">Должность</div>
+		<div class="m-boss-col-5 m-worker">Смена</div>
+		<div class="m-boss-col-6 m-worker">E-mail</div>
+	</div>
+	<div class="m-boss-body">
+	</div>
+</div>
+<div class="m-boss-wrap boss-panel-filter" data-attr="session_shedule" style="display: none;">
+	<div class="m-boss-head">
+		<div class="m-boss-col-1 m-timetable">Дата</div>
+		<div class="m-boss-col-2 m-timetable">Время</div>
+		<div class="m-boss-col-3 m-timetable">Название</div>
+		<div class="m-boss-col-4 m-timetable">Место</div>
+		<div class="m-boss-col-5 m-timetable">Форма проведения</div>
+		<div class="m-boss-col-6 m-timetable">Сотрудники</div>
+		<div class="m-boss-col-7 m-timetable">Срок действия</div>
+		<div class="m-boss-col-8 m-timetable">Статус</div>
+	</div>
+	<div class="m-boss-body m-child m-child-pad">
+	</div>
+</div>
+<div class="m-boss-wrap boss-panel-filter" data-attr="request_states" style="display: none;">
+	<div class="m-boss-head">
+		<div class="m-boss-col-1 m-status">Сотрудник</div>
+		<div class="m-boss-col-2 m-status">Дата создания</div>
+		<div class="m-boss-col-3 m-status">Тип заявки</div>
+		<div class="m-boss-col-4 m-status">Должность</div>
+		<div class="m-boss-col-5 m-status">Смена</div>
+		<div class="m-boss-col-6 m-status">Статус</div>
+	</div>
+	<div class="m-boss-body">
+	</div>
+</div>
+<div class="m-boss-wrap boss-panel-filter" data-attr="dismissal_orders" style="display: none;">
+	<div class="m-boss-head">
+		<div class="m-boss-col-1 m-worker">Сотрудник</div>
+		<div class="m-boss-col-1 m-worker">Тренинг-программа</div>
+		<div class="m-boss-col-3 m-worker">Дата формирования</div>
+		<div class="m-boss-col-4 m-worker">Выгрузить приказ</div>
+	</div>
+	<div class="m-boss-body">
+	</div>
+</div>
+<div id="collaborator_modal" class="overlay" style="overflow: hidden;"> 
+	<div class="m-modal-wrap" style="overflow: auto;">
+		<div class="m-modal list-profile-role">
+			<span class="modal-close"></span>
+			<div class="modal-content">
+				<div id="m-profile-role-modal" class="m-profile-role">
+					<div class="m-session-header">
+						<div class="m-session-item">
+							<div class="m-group-table-left">
+								<div class="session-col-1"></div>
+							</div>
+							<div class="m-group-table-right">
+								<div class="session-col-5">Этап кваликации</div>
+								<div class="session-col-6">Форма проведения</div>
+								<div class="session-col-7">Статус</div>
+								<div class="session-col-8">Срок действия</div>
+							</div>
+						</div>
+					</div>
+					<div id="modal_body" class="m-session-body">
+						<div class="m-session-item">
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<div id="intership_modal" class="overlay" style="overflow: hidden;"> 
+	<div class="m-modal-wrap" style="overflow: auto;">
+		<div class="m-modal list-profile-role">
+			<span class="modal-close"></span>
+			<div class="modal-content">
+				<div id="m-profile-role-modal" class="m-profile-role">
+					<div class="m-session-header">
+						<div class="m-session-item">
+							<div class="m-group-table-left">
+								<div class="session-col-1"></div>
+							</div>
+							<div class="m-group-table-right">
+								<div class="session-col-5">Этап кваликации</div>
+								<div class="session-col-6">Форма проведения</div>
+								<div class="session-col-7">Статус</div>
+								<div class="session-col-8">Срок действия</div>
+							</div>
+						</div>
+					</div>
+					<div id="modal_body_internship" class="m-session-body">
+						<div class="m-session-item">
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+<form id="excel-form-id" method="POST" action="/custom_web_template.html?object_id=<%=options.cwt.excel_test_result%>">
+	<input type="hidden" id="excel-test-result-id" name="result_id"/>
+</form>
+<form id="dismissal_order_excel" action="/custom_web_template.html?object_code=mars_dismissal_order_print" target="_blank" method="post" style="display: none;">
+	<input type="text" name="order_id" value="" />
+	<input type="submit" />
+</form>
+<form id="excel-form-internships" method="POST" action="/custom_web_template.html?object_code=mars_internships_create_excel">
+	<input type="hidden" id="" name=""/>
+</form>
+<script	type="text/javascript" src="/custom_web_template.html?object_code=jquery_ui_core_js"></script>
+<script type="text/javascript" src="/custom_web_template.html?object_code=jquery_ui_datepicker_js"></script>
+<script type="text/javascript" src="/custom_web_template.html?object_code=mars_polifile"></script>
+<link rel="stylesheet" type="text/css" href="/custom_web_template.html?object_code=jquery_ui_datepicker_css" />
+<style>
+.m-btn {
+	padding: 8px 20px 8px 20px !important;
+	font-size: 13px !important;
+	margin-top: -8px;
+}
+.m-btn-boss-panel {
+	font-size: 16px !important; 
+	padding: 13px 25px 14px !important; 
+	cursor: pointer !important; 
+	margin-top: 10px;
+}
+</style>
+<script type="text/javascript">
+(function () {
+	function remoteAction(actionObject) {
+		try {
+			if (remoteAction != undefined) {
+				var returnObject = {};
+				var soapRequestBody;
+				var soapServerUrl = actionObject.url != undefined ? actionObject.url : '/remote_actions_wsdl.xml';
+				var soapFormat = actionObject.format != undefined ? actionObject.format : 'json';
+
+				soapRequestBody  = "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
+				soapRequestBody += "<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">";
+				soapRequestBody += "<soap:Body>";
+				soapRequestBody += "<" + actionObject.name + " xmlns=\"http://www.websoft.ru/\">";
+				soapRequestBody += "<format>" + soapFormat + "</format>";
+				if (actionObject.options != undefined) {
+					for (var i = 0; i < actionObject.options.length; i++) {
+						soapRequestBody += "<" + actionObject.options[i].name + ">" + actionObject.options[i].value + "</" + actionObject.options[i].name + ">";
+					}
+				}
+				soapRequestBody += "</" + actionObject.name + ">";
+				soapRequestBody += "</soap:Body>";
+				soapRequestBody += "</soap:Envelope>";
+
+				$.ajax({
+					type: "POST",
+					url: soapServerUrl,
+					contentType: "text/xml",
+					dataType: "xml",
+					data: soapRequestBody,
+					success: processSuccess,
+					error: processError
+				});
+
+				function processSuccess (data, status, req) {
+					if (status == "success") {
+						var returnObject = {
+							error: data.getElementsByTagName('error')[0].firstChild,
+							type: data.getElementsByTagName('type')[0].firstChild,
+							messageText: data.getElementsByTagName('messageText')[0].firstChild,
+							result: data.getElementsByTagName('result')[0].firstChild
+						};
+						try {
+							returnObject.error = returnObject.error.nodeValue;
+						}
+						catch(_ex){}
+						try {
+							returnObject.type = returnObject.type.nodeValue;
+						}
+						catch(_ex){}
+						try {
+							returnObject.messageText = returnObject.messageText.nodeValue;
+						}
+						catch(_ex){}
+						try {
+							returnObject.result = returnObject.result.nodeValue;
+						}
+						catch(_ex){}
+
+						if (actionObject.callback_f != undefined) {
+							actionObject.callback_f(returnObject);
+						}
+
+						return returnObject;
+					} else {
+						throw status;
+					}
+				}
+
+				function processError(data, status, req) {
+					throw req;
+				}
+			} else {
+				throw '00'
+			}
+		}
+		catch (_exeption) {
+			returnObject = {error: 1, messageText: _exeption};
+			if (typeof(actionObject.callback_f) != 'undefined') {
+				actionObject.callback_f(returnObject);
+			}
+			return returnObject ;
+		}
+	}
+
+	function declOfNum(number) {
+		number = Math.abs(number);
+		var cases = [2, 0, 1, 1, 1, 2];
+		titles = ['день', 'дня', 'дней'];
+
+		return titles[(number % 100 > 4 && number % 100 < 20) ? 2 : cases[(number % 10 < 5) ? number % 10 : 5]];
+	}
+
+	var create_request_window = {
+		create: function() {
+			create_request_window.col = new CreateRequest.Collaborator({
+				codeCollection: "mars_collab_for_lm",
+				parameters: "user_id=<%=user_id%>;site_id=<%=site_id%>"
+			});
+
+			create_request_window.reqType = new CreateRequest.TypeRequest();
+
+			create_request_window.roles = new CreateRequest.RoleCompProg({
+				codeCollection: "mars_education_method_roles"
+			});
+
+			create_request_window.btnCp = new CreateRequest.BtnCompProg({
+				codeCollection: "mars_compount_prog_request"
+			});
+
+			create_request_window.btnAct = new CreateRequest.BtnAction({
+				action: function(obj) { 
+					var preloader = jquery_preloader($("body"), 2);
+					preloader.load();
+					remoteAction(obj);
+				},
+				callback: function() {
+					preloader.aload();
+				}
+			});
+
+			create_request_window.req_Modal = new CreateRequest.ResquestModalWindow({
+				title: "Форма создания заявки на обучение",
+				collaborator: create_request_window.col,
+				requestType: create_request_window.reqType,
+				role: create_request_window.roles,
+				btnComPr: create_request_window.btnCp,
+				btnAct: create_request_window.btnAct,
+				type: ""
+			});
+
+			$('body').append( create_request_window.req_Modal.getDomElement() );
+		}
+	};
+
+	var create_static_window = {
+			create: function() {
+				create_static_window.colStatic = new StaticRequest.Label({
+					name: '',
+					title: 'Сотрудник'
+				});
+				create_static_window.reqTypeStatic = new StaticRequest.Label({
+					name: '',
+					title: 'Тип заявки'
+				});
+				create_static_window.qlAreaStatic = new StaticRequest.Label({
+					name: '',
+					title: 'Участок'
+				});
+				create_static_window.qlLevelStatic = new StaticRequest.Label({
+					name: '',
+					title: 'Уровень'
+				});
+				create_static_window.btnCpStatic = new StaticRequest.ListCompoundProg();
+				create_static_window.reqModalStatic = new StaticRequest.ResquestModalWindow({
+					title: "Форма заявки на обучение",
+					collaborator: create_static_window.colStatic,
+					typeRequest: create_static_window.reqTypeStatic,
+					lmManager: create_static_window.lmStatic,
+					listCompProg: create_static_window.btnCpStatic,
+					type: "",
+					qlArea: create_static_window.qlAreaStatic,
+					qlLevel: create_static_window.qlLevelStatic//comeback
+				});
+				$('body').append( create_static_window.reqModalStatic.getDomElement() );
+		}
+	};
+	
+	var req_modal_btn = {
+		set_events: function() {
+			$("#req_modal_btn").click(function(event) {
+				create_request_window.col.removeInset();
+				create_request_window.req_Modal.showModal();
+			});
+		}
+	};
+
+	var collaborator_modal_window = {
+		show: function () {
+			var div = $("#collaborator_modal");
+			var divM = $(div).find(".m-modal");	
+
+			$(div).fadeIn(200,
+				function () {
+					divM.animate({opacity: 1, top: "35%"}, 300);
+				}
+			);
+		},
+		render_education_method: function (data) {
+			var learning_elem = $();
+
+			for (var i = 0; i < data.length; i++) {
+				var str = "";
+				if (data[i].status.text == "действует" && data[i].qual_date_str == "-") {
+					str = 'бессрочно';
+				} else if (	data[i].status.text == "действует" && data[i].status.dateDiff != "" || 
+					data[i].status.text == "в процессе получения" && data[i].status.dateDiff != "" ) {
+					str = 'до ' + data[i].qual_date_str + ' <span>(' + data[i].status.dateDiff + ' ' + declOfNum(data[i].status.dateDiff) + ')</span>';	
+				} else {
+					str = "до " + data[i].qual_date_str;
+				}
+
+				learning_elem = $.merge(learning_elem, $("<div/>").addClass("m-group-table-right-col-i " + data[i].status.class).append(
+					$("<div/>").addClass("session-col-5").text(decodeURIComponent(data[i].name)),
+					$("<div/>").addClass("session-col-6").text(data[i].form),
+					$("<div/>").addClass("session-col-7").text(data[i].status.text),
+					$("<div/>").addClass("session-col-8").html(str),
+					$("<div/>").addClass("session-col-9").append("<i/>")
+				));
+			}
+
+			return learning_elem;
+		},
+		render: function (id, collaborator_id, learning_type) {
+			var data = collaborator_modal_window.search_data(id, collaborator_id, collaborators.data, learning_type);
+			var modal_body = $("#modal_body .m-session-item");
+			modal_body.empty();
+
+			modal_body.append(
+				$("<div/>").addClass("m-group-table-left").append(
+					$("<div/>").addClass("session-col-1").append($("<span/>").addClass(data.status.class).text(data.status.text)),
+					$("<div/>").addClass("session-col-2").append(
+						$("<h2/>").text(data.name),
+						(data.education_methods.length > 0 ?
+							(data.education_methods[0].area_for_levels != "" ?
+								$("<div/>").addClass("session-col-5").addClass("m-row-break-word").text(data.education_methods[0].area_for_levels)
+								: "" )
+							: "")
+					)
+				),
+				$("<div/>").addClass("m-group-table-right").append(collaborator_modal_window.render_education_method(data.education_methods))
+			);
+		},
+		search_data: function (id, collaborator_id, data, learning_type) {
+			for (var i = 0; i < data.result.length; i++) {
+				if (data.result[i].id == collaborator_id && data.result[i][learning_type] != undefined) {
+					for (var j = 0; j < data.result[i][learning_type].length; j++) {
+						switch (learning_type) {
+							case "levels_learning":
+								if (data.result[i][learning_type][j].education_methods[0].levels_id == id ) {
+									return data.result[i][learning_type][j];
+								}
+								break;
+							default:
+								if (data.result[i][learning_type][j].id == id) {
+									return data.result[i][learning_type][j];
+								}
+								break;
+						}
+					}
+				}
+			}
+
+			return {name: "", education_methods: [], status: {text: "", class: ""}};
+		}
+	};
+
+	var intership_modal_window = {
+		show: function () {
+			var div = $("#intership_modal");
+			var divM = $(div).find(".m-modal");	
+
+			$(div).fadeIn(200,
+				function () {
+					divM.animate({opacity: 1, top: "35%"}, 300);
+				}
+			);
+		},
+		render: function (elemId) {
+			var data = intership_modal_window.search_data(elemId);
+			var modal_body = $("#modal_body_internship .m-session-item");
+			modal_body.empty();
+
+			modal_body.append(
+				$("<div/>").addClass("m-group-table-left").append(
+					$("<div/>").addClass("session-col-1").append($("<span/>").addClass("m-" + data.color).text(data.status)),
+					$("<div/>").addClass("session-col-2").append(
+						$("<h2/>").text(data.name)
+					)
+				),
+				$("<div/>").addClass("m-group-table-right").append(
+					$("<div/>").addClass("m-group-table-right-col-i m-" + data.color).append(
+						$("<div/>").addClass("session-col-5"),
+						$("<div/>").addClass("session-col-6").text("Стажировка"),
+						$("<div/>").addClass("session-col-7").text(data.status),
+						$("<div/>").addClass("session-col-8").html("до " + data.finish_date),
+						$("<div/>").addClass("session-col-9").append("<i/>")
+					)
+				)
+			);
+		},
+		search_data: function (elemId) {
+			return internships.data.internshipsList.find(function(item) {
+				return item.id == elemId;
+			});
+		}
+	};
+
+	var head_filter = {
+		date_from: "<%=StrDate(now, false, false)%>",
+		date_to: "<%=next_month%>",
+		date_from_test: "<%=StrDate(now_test, false, false)%>",
+		date_to_test: "<%=next_month_test%>",
+		delete_item: function (__this, __result) {
+			var __id = __this.attr("data-id");
+
+			for (var i = 0; i < __result.data.items.length; i++) {
+				if (__id == __result.data.items[i].data.id) {
+					__this.remove();
+					var rec = __result.getById(__id);
+					__result.remove(rec);
+				}
+			}
+		},
+		get_ids: function (__result) {
+			var __ids = [];
+
+			for (var i = 0; i < __result.data.items.length; i++) {
+				__ids.push(__result.data.items[i].data.id);
+			}
+
+			return __ids.join(",");
+		},
+		search_collaborator: function(selector, fullname) {
+			var search_text = selector.val().toLowerCase();
+
+			if (search_text != "" && fullname.toLowerCase().indexOf(search_text) === -1) {
+				return true;
+			}
+
+			return false;
+		},
+		set_events: function () {
+			$(".m-head-filters-wrap a").on("click", function() {
+				var data_attr = $(this).attr("data-attr");
+
+				$("div.boss-panel-filter").hide();
+				$("div[data-attr=" + data_attr + "]").show();
+
+				$(".m-head-filters-wrap a").removeClass("active line-bottom");
+				$(this).addClass("active line-bottom");
+			});
+
+			$(".m-chips-item").on("click", function(event) {
+				var __this = $(this);
+
+				if (__this.attr("data-attr") != "") {
+					if (__this.hasClass("active")) {
+						__this.removeClass("active");
+
+						if (__this.parent().find(".m-chips-item.active[data-attr!='']").length == 0) {
+							__this.parent().find(".m-chips-item[data-attr='']").addClass("active");
+						} else {
+							__this.parent().find(".m-chips-item[data-attr='']").removeClass("active");	
+						}
+					} else {
+						__this.addClass("active");
+						__this.parent().find(".m-chips-item[data-attr='']").removeClass("active");
+					}
+				} else {
+					if (__this.hasClass("active")) {
+						event.stopImmediatePropagation();
+					}
+
+					__this.parent().find(".m-chips-item").removeClass("active");
+					__this.addClass("active");
+				}
+			});
+
+			$("#date_from, #date_to").on("change", function() {
+				session_shedule.get_data();
+			});
+
+			$("#date_from").change(function(e) {
+				e.stopImmediatePropagation();
+
+				if ($(this).val() != "") {
+					$("#date_to").datepicker("option", "minDate", $(this).val());
+				}
+			});
+		},
+		render_button_text: function (selector, text) {
+			selector.text(text);
+		},
+		render_text: function (selector, data_length) {
+			selector.text(data_length);
+		},
+		rep: function (text) {
+			if (text == undefined) {
+				return "";
+			}
+
+			var __text = text.replace(/&amp;/g, "&");
+			__text = __text.replace(/&lt;/g, "<");
+
+			return __text;
+		}
+	};
+
+	var area_result = new Ext.data.JsonStore({
+		root: "results",
+		idProperty: "id",
+		fields: ["id", "name"]
+	});
+
+	var collaborators = {
+		data: [],
+		init: function () {
+			collaborators.set_events();
+		},
+		clear_filter: function() {
+			area_result.data.items.length = 0;
+			$(".boss-panel-filter[data-attr='collaborators'] .m-chips-item").removeClass("active").first().addClass("active");
+			$("#collaborator_search").val("");
+
+			collaborators.render(collaborators.data);
+		},
+		get_data: function () {
+			preloader = jquery_preloader($("body"), 2);
+			preloader.load();
+			var result_id = 0;
+			var load_data = function () {
+				$.ajax({
+					type: "POST",
+					url: "/custom_web_template.html?object_id=<%=options.cwt.collaborators%>",
+					dataType: "json",
+					data: {
+						result_id: result_id,
+						user_id: "<%=user_id%>",
+						site_id: "<%=site_id%>",
+						qual_types: collaborators.get_filter_data()
+					},
+					success: function (data) {
+						if (data.error === 503) {
+							result_id = data.result_id;
+							setTimeout(load_data, 3000);
+						} else if (data.error === 0) {
+							collaborators.data = data;
+							collaborators.render(collaborators.data);
+							preloader.aload();
+						}
+					}
+				});
+			};
+
+			load_data();
+		},
+		get_filter_data: function () {
+			var qual_types = [];
+
+			$("#qual_type_filter div.active").each(function () {
+				if ($(this).attr("data-attr") != "") {
+					qual_types.push($(this).attr("data-attr"));
+				}
+			});
+
+			return qual_types;
+		},
+		render: function (data) {
+			try
+			{
+				var body = $(".boss-panel-filter[data-attr='collaborators'] .m-boss-body");
+				body.empty();
+
+				var qual_types = collaborators.get_filter_data();
+
+				for (var i = 0; i < data.result.length; i++) {
+					if (!collaborators.search_qualification(qual_types, data.result[i].learning) &&
+						!collaborators.search_qualification(qual_types, data.result[i].optional_learning)) {
+						continue;
+					}
+
+					if (head_filter.search_collaborator($("#collaborator_search"), decodeURIComponent(data.result[i].fullname))) {
+						continue;
+					}
+
+					body.append(
+						$("<div/>").addClass("m-boss-item m-child").append(
+							$("<div/>").addClass("m-boss-line m-boss-line-nopad js-togg-active").append(
+								$("<i/>").addClass("m-icon-angle js-expand-coll m-pointer"),
+								$("<div/>").addClass("m-boss-col-1 m-worker m-" + data.result[i].learning_status.color + " js-expand-coll m-pointer").text(decodeURIComponent(data.result[i].fullname)),
+								$("<div/>").addClass("m-boss-col-2 m-worker js-expand-coll m-pointer").text(data.result[i].site),
+								$("<div/>").addClass("m-boss-col-3 m-worker js-expand-coll m-pointer").text(decodeURIComponent(data.result[i].area)),
+								$("<div/>").addClass("m-boss-col-4 m-worker js-expand-coll m-pointer").text(decodeURIComponent(data.result[i].position)),
+								$("<div/>").addClass("m-boss-col-5 m-worker js-expand-coll m-pointer").text(decodeURIComponent(data.result[i].shift)),
+								$("<div/>").addClass("m-boss-col-6 m-worker").append(
+									$("<a/>").addClass("green-link").attr("href", "mailto:" + decodeURIComponent(data.result[i].email)).text(decodeURIComponent(data.result[i].email))
+								),
+								$("<div/>").addClass("m-boss-col-7 m-worker").append(
+									$("<a/>").addClass("m-icon-link").attr("href", "/view_doc.html?mode=collaborator&doc_id=&object_id=" + data.result[i].id).attr("target", "_blank").append(
+										$("<i/>").addClass("m-icon-man m-icon-man-pos"),
+										$("<span/>").text("Анкета")
+									)
+								)
+							)
+						).append($("<div/>").addClass("m-inner-wrap").attr("data-id", data.result[i].id).append(
+								collaborators.render_learning(data.result[i].learning, "Обязательное обучение", "Отсутствует по должности сотрудника", "learning"),
+								collaborators.render_learning(data.result[i].optional_learning, "Дополнительное обучение", "Отсутствует обучение сотрудника", "optional_learning"),
+								collaborators.render_learning(data.result[i].levels_learning, "Квалификационные уровни", "Отсутствует обучение сотрудника", "levels_learning"),
+								(data.result[i].internships.length > 0 ? collaborators.render_learning(data.result[i].internships, "Стажировки", "", "internships") : ''),
+								collaborators.render_requset_button("Подать заявку на программу обучения", data.result[i].id, decodeURIComponent(data.result[i].fullname))
+							)
+						)
+					);
+				}
+
+				var items_count = body.find(".m-boss-item").length;
+
+				if (items_count > 0) {
+					body.show();
+					body.prev().show();
+				} else {
+					body.hide();
+					body.prev().hide();
+				}
+
+				head_filter.render_text($("#collaborator_count span"), items_count);
+				$(".boss-panel-filter[data-attr='collaborators']").show();
+			}
+			catch(ex)
+			{
+			}
+		},
+		render_learning: function (array, name, empty_text, learning_type) {
+			return $("<div/>").addClass("m-inner").append(
+						$("<div/>").addClass("m-inner-head").text(name),
+						$("<div/>").addClass("m-inner-body").append(
+							collaborators.render_learning_elems(array, empty_text, learning_type)
+						)
+					);
+		},
+		render_learning_elems: function (array, empty_text, learning_type) {
+			var learning_elem = $();
+
+			if (array.length == 0) {
+				return $("<div/>").addClass("m-inner-item m-inner-item-mod").append($("<p/>").addClass("m-inner-p").text(empty_text));
+			}
+
+			for (var i = 0; i < array.length; i++) {
+
+				var data_id = "0";
+				var qualification_level_info = "";
+
+				if (learning_type == "levels_learning") {
+					data_id = array[i].education_methods[0].levels_id;
+					qualification_level_info = array[i].education_methods[0].area_for_levels;
+				} else {
+					data_id = array[i].id;
+				}
+
+				learning_elem = $.merge(learning_elem, $("<div/>").addClass("m-inner-item").append(
+					$("<div/>").addClass("m-boss-col-1 m-worker").append(
+						$("<a/>").addClass("black-link").attr({"href": "javascript:;", "data-id": data_id, "data-name" : learning_type}).text(array[i].name + (qualification_level_info != "" ? ", " + qualification_level_info : ""))
+					).css({"padding-left":"0px"}),
+					$("<div/>").addClass("m-boss-col-2 m-worker"),
+					$("<div/>").addClass("m-boss-col-3 m-worker"),
+					$("<div/>").addClass("m-boss-col-4 m-worker"),
+					$("<div/>").addClass("m-boss-col-5 m-worker").text(array[i].period != undefined ? array[i].period : ""),
+					$("<div/>").addClass("m-boss-col-6 m-worker").append(
+						$("<div/>").addClass("m-inner-chip m-" + array[i].status.color).text(array[i].status.text)
+					)
+				));
+			}
+
+			return learning_elem;
+		},
+		render_requset_button: function (button_name, col_id, col_fullname) {
+			return $("<section/>").addClass("m-inner-btn-wrap").append($("<a/>").addClass("create-request-btn m-plus-btn-white m-plus-btn-pos").text(button_name).attr("data-id", col_id).attr("data-fullname", col_fullname));
+		},
+		search_qualification: function (qual_types, learning_arr) {
+			if (qual_types.length == 0) {
+				return true;
+			}
+			for (var i = 0; i < learning_arr.length; i++) {		
+				if (qual_types.indexOf(learning_arr[i].status.type) !== -1) {
+					return true;
+				}
+			}
+
+			return false;
+		},
+		set_events: function () {
+			$("#load_collaborators").on("click", function() {
+				collaborators.get_data();
+			});
+
+			$(".boss-panel-filter[data-attr='collaborators'] .m-chips-item").on("click", function() {
+				collaborators.render(collaborators.data);
+			});
+
+			$("#clear_collaborator_filter").on("click", function () {
+				collaborators.clear_filter();
+			});
+
+			$("#collaborator_search").on("change keyup", function() {
+				collaborators.render(collaborators.data);
+			});
+
+			$(document).on("click", ".boss-panel-filter[data-attr='collaborators'] .black-link", function() {
+				var __this = $(this);
+
+				collaborator_modal_window.render(__this.attr("data-id"), __this.closest(".m-inner-wrap").attr("data-id"), __this.attr("data-name"));
+				collaborator_modal_window.show();
+			});
+
+			$(document).on("click", ".js-expand-coll", function () {
+				var parent = $(this).parent();
+				parent.hasClass("active") ? parent.removeClass("active") : parent.addClass("active");
+			});
+			
+			$(document).on("click", ".create-request-btn", function (event) {
+				var col_id = $(event.target).attr("data-id");
+				var col_name = $(event.target).attr("data-fullname");
+				if ( col_id != "" ) {
+					create_request_window.col.setValue({
+						collaboratorID: col_id,
+						collaboratorName: col_name
+					});
+					
+					create_request_window.col.setClickable(false);
+					create_request_window.req_Modal.showModal();
+				}
+			});
+		}
+	};
+
+	var collaborator_result = new Ext.data.JsonStore({
+		root: "results",
+		idProperty: "id",
+		fields: ["id", "fullname", "position", "site", "area", "shift"]
+	});
+
+	var session_shedule = {
+		init: function (without_preloader) {
+			session_shedule.get_data(without_preloader);
+			session_shedule.set_events();
+		},
+		clear_filter: function () {
+			collaborator_result.data.items.length = 0;
+			$("#collaborator_filter").empty();
+
+			$("#date_from").val(head_filter.date_from);
+			$("#date_to").val(head_filter.date_to);
+
+			$("#session_type_filter .m-chips-item").removeClass("active").first().addClass("active");
+			$("#session_status_filter .m-chips-item").removeClass("active").first().addClass("active");
+
+			session_shedule.get_data();
+		},
+		get_data: function (without_preloader) {
+			var result_id = 0;
+			var filter_data = session_shedule.get_filter_data();
+
+			if (!without_preloader) {
+				preloader = jquery_preloader($("body"), 2);
+				preloader.load();
+			}
+
+			var load_data = function () {
+				$.ajax({
+					type: "POST",
+					url: "/custom_web_template.html?object_id=<%=options.cwt.session_shedule_result%>",
+					dataType: "json",
+					data: {
+						result_id: result_id,
+						user_id: "<%=user_id%>",
+						collaborator_ids: head_filter.get_ids(collaborator_result),
+						types: filter_data.types,
+						statuses: filter_data.statuses,
+						date_from: $("#date_from").val(),
+						date_to: $("#date_to").val()
+					},
+					success: function (data) {
+						if (data.error === 503) {
+							result_id = data.result_id;
+							setTimeout(load_data, 3000);
+						} else if (data.error === 0) {
+							head_filter.render_text($("#session_shedule_count span"), data.result.length);
+							session_shedule.render(data);
+
+							if (without_preloader) {
+								defer_2.resolve();
+							} else {
+								preloader.aload();
+							}
+						}
+					}
+				});
+			};
+
+			load_data();
+		},
+		get_filter_data: function () {
+			var types = [];
+			var statuses = [];
+
+			$("#session_type_filter div.active").each(function () {
+				if ($(this).attr("data-attr") != "") {
+					types.push($(this).attr("data-attr"));
+				}
+			});
+
+			$("#session_status_filter div.active").each(function () {
+				if ($(this).attr("data-attr") != "") {
+					statuses.push($(this).attr("data-attr"));
+				}
+			});
+
+			return {types: types.join(","), statuses: statuses.join(",")};
+		},
+		render: function (data) {
+			var body = $(".boss-panel-filter[data-attr='session_shedule'] .m-boss-body");
+			body.empty();
+
+			if (data.result.length > 0) {
+				body.show();
+				body.prev().show();
+			} else {
+				body.hide();
+				body.prev().hide();
+			}
+
+			for (var i = 0; i < data.result.length; i++) {
+			
+				var formEl = $("<div/>").addClass("m-boss-col-5 m-timetable").text(data.result[i].event_form_name);
+				if ( data.result[i].event_form == "test" 	|| 
+					data.result[i].event_form == "training" ||
+					data.result[i].event_form == "practice" ||
+					data.result[i].event_form == "exam" 	||
+					data.result[i].event_form == "interview"	) {
+					formEl.append($("<i/>").addClass("m-chips-" + data.result[i].event_form + " m-chips-boss"));
+				} else {
+					formEl.css({"padding-left": "0px"});
+				}
+				
+				//стили полей дата и время проведения
+				var dateEl;
+				var timeEl;
+				if (data.result[i].status === 'Отменено') {
+					dateEl = $("<div/>").addClass("m-boss-col-1 m-timetable m-red").text(data.result[i].start_date).css({"text-decoration": "line-through"});
+					timeEl = $("<div/>").addClass("m-boss-col-2 m-timetable m-red").text(data.result[i].time).css({"text-decoration": "line-through"});
+				} else if (data.result[i].status === 'Завершено') {
+					dateEl = $("<div/>").addClass("m-boss-col-1 m-timetable m-green").text(data.result[i].start_date);
+					timeEl = $("<div/>").addClass("m-boss-col-2 m-timetable m-green").text(data.result[i].time);
+				} else {
+					dateEl = $("<div/>").addClass("m-boss-col-1 m-timetable").text(data.result[i].start_date);
+					timeEl = $("<div/>").addClass("m-boss-col-2 m-timetable").text(data.result[i].time);
+				}
+
+				body.append(
+					$("<div/>").addClass("m-boss-item m-boss-item-pad").append(
+						$("<div/>").addClass("m-boss-line-pad").append(
+							dateEl,
+							timeEl,
+							$("<div/>").addClass("m-boss-col-3 m-timetable m-black").text(decodeURIComponent(data.result[i].name)),
+							$("<div/>").addClass("m-boss-col-4 m-timetable").text(decodeURIComponent(data.result[i].place)),
+							formEl,
+							$("<div/>").addClass("m-boss-col-6 m-timetable").append(session_shedule.render_participants(data.result[i].participants)),
+							$("<div/>").addClass("m-boss-col-7 m-timetable").text(data.result[i].status)
+						)
+					)
+				);
+			}
+		},
+		render_participants: function (array) {
+			if (array == undefined) {
+				return;
+			}
+
+			var ul = $("<ul/>").addClass("m-boss-inner");
+			var qual_date;
+			var div, col_2;
+
+			for (var i = 0; i < array.length; i++) {
+				qual_date = array[i].qual_date;
+				col_2 = $("<div/>").addClass("m-boss-inner-col-2").append(qual_date);
+
+				if (array[i].date_diff !== "" && array[i].date_diff <= 7) {
+					div = $("<div/>");
+					div.append(" " + array[i].date_diff + " " + declOfNum(Math.abs(array[i].date_diff)) + "");
+					col_2.append(div);
+				}
+
+				ul.append($("<li/>").addClass("m-boss-inner-item").append(
+						$("<div/>").addClass("m-boss-inner-col-1").text(decodeURIComponent(array[i].fullname)),
+						col_2
+					)
+				);
+			}
+
+			return ul;
+		},
+		set_events: function () {
+			$(".boss-panel-filter[data-attr='session_shedule'] .m-chips-item").on("click", function(event) {
+				session_shedule.get_data();
+			});
+
+			$("#clear_session_filter").on("click", function() {
+				session_shedule.clear_filter();
+			});
+
+			$(document).on("click", "#collaborator_filter span", function () {
+				head_filter.delete_item($(this), collaborator_result);
+
+				if (collaborator_result.data.items.length == 0) {
+					head_filter.render_button_text($("#collaborator_button"), "Сотрудники (все)");
+				}
+
+				session_shedule.get_data();
+			});
+
+			$("#collaborator_button").on("click", function() {
+				var __this = $(this);
+				var column_array = [
+					{
+						width: 220,
+						header: "ФИО",
+						dataIndex: "fullname"
+					},
+					{
+						width: 210,
+						header: "Должность",
+						dataIndex: "position"
+					},
+					{
+						width: 60,
+						header: "Сайт",
+						dataIndex: "site"
+					},
+					{
+						width: 120,
+						header: "Участок",
+						dataIndex: "area"
+					},
+					{
+						width: 170,
+						header: "Смена",
+						dataIndex: "shift"
+					}
+				];
+
+				var field_array = ["id", "fullname", "position", "site", "area", "shift"];
+				var input_options = {
+					collection_code: "mars_boss_panel_custom_collaborators",
+					parameters: "user_id=<%=user_id%>;site_id=<%=site_id%>",
+					limit: 30,
+					start: 0
+				};
+
+				var close_handler = function() {
+					var collaborator_filter = $("#collaborator_filter");
+					collaborator_filter.empty();
+
+					for (var i = 0; i < collaborator_result.data.items.length; i++) {
+						collaborator_filter.append($("<span/>").attr("data-id", collaborator_result.data.items[i].data.id).text(head_filter.rep(collaborator_result.data.items[i].data.fullname)));
+					}
+
+					if (collaborator_result.data.items.length == 0) {
+						head_filter.render_button_text(__this, "Сотрудники (все)");
+					} else {
+						head_filter.render_button_text(__this, "Сотрудники");
+					}
+
+					session_shedule.get_data();
+				}
+
+				show_dual_window_all(collaborator_result, column_array, field_array, input_options, close_handler, {title: "Сотрудники"});
+			});
+		}
+	};
+
+	var request_states = {
+		data: [],
+		data_for_modal: [],
+		init: function () {
+			request_states.get_data();
+			request_states.set_events();
+		},
+		clear_filter: function() {
+			$("#request_type_filter .m-chips-item").removeClass("active").first().addClass("active");
+			$("#request_status_filter .m-chips-item").removeClass("active").first().addClass("active");
+			$("#request_search").val("");
+
+			request_states.render(request_states.data);
+		},
+		find_in_array: function(arr, item, fn) {
+			if ( fn === undefined ) {
+				for ( var i = 0; i < arr.length; i++ ) {
+					if ( arr[i] == item ) {
+						return i;
+					}
+				}
+				return -1;
+			}
+			for ( var i = 0; i < arr.length; i++ ) {
+				if ( fn(arr[i], item) ) {
+					return i;
+				}
+			}
+			return -1;
+		},
+		get_filter_data: function () {
+			var types = [];
+			var states = [];
+
+			$("#request_type_filter div.active").each(function () {
+				if ($(this).attr("data-attr") != "") {
+					types.push($(this).attr("data-attr"));
+				}
+			});
+
+			$("#request_status_filter div.active").each(function () {
+				if ($(this).attr("data-attr") != "") {
+					states.push($(this).attr("data-attr"));
+				}
+			});
+
+			return {types: types, states: states};
+		},
+		get_data: function () {
+			var result_id = 0;
+
+			var load_data = function () {
+				$.ajax({
+					type: "POST",
+					url: "/custom_web_template.html?object_id=<%=options.cwt.request_states_result%>",
+					dataType: "json",
+					data: {
+						result_id: result_id,
+						user_id: "<%=user_id%>",
+						site_id: "<%=site_id%>"
+					},
+					success: function (data) {
+						if (data.error === 503) {
+							result_id = data.result_id;
+							setTimeout(load_data, 3000);
+						} else if (data.error === 0) {
+							request_states.data = data;
+							request_states.render(request_states.data);
+							defer_3.resolve();
+						}
+					}
+				});
+			};
+
+			load_data();
+		},
+		render: function (data) {
+			var body = $(".boss-panel-filter[data-attr='request_states'] .m-boss-body");
+			body.empty();
+
+			for (var i = 0; i < data.result.length; i++) {
+				if (head_filter.search_collaborator($("#request_search"), decodeURIComponent(data.result[i].fullname))) {
+					continue;
+				}
+
+				var request_filters = request_states.get_filter_data();
+
+				if (request_states.search_request_type(request_filters.types, data.result[i].request_type_code)) {
+					continue;
+				}
+				
+				if (request_states.search_request_states(request_filters.states, String(data.result[i].status_number))) {
+					continue;
+				}
+
+				body.append(
+					$("<div/>").addClass("m-boss-item m-child").append(
+						$("<div/>").addClass("m-boss-line").append(
+							$("<div/>").addClass("m-boss-col-1 m-status").append(
+								$("<a/>").addClass("black-dash-link request-static-modal").attr("href", "javascript:;").attr("data-id", data.result[i].uniq_request_code).text(decodeURIComponent(data.result[i].fullname))
+							),
+							$("<div/>").addClass("m-boss-col-2 m-status").text(data.result[i].create_date),
+							$("<div/>").addClass("m-boss-col-3 m-status").text(data.result[i].type),
+							$("<div/>").addClass("m-boss-col-4 m-status").text(decodeURIComponent(data.result[i].position_name)),
+							$("<div/>").addClass("m-boss-col-5 m-status").text(decodeURIComponent(data.result[i].shift)),
+							$("<div/>").addClass("m-boss-col-6 m-status").text(data.result[i].status)
+						)
+					)
+				);
+			}
+
+			var items_count = body.find(".m-boss-item").length;
+
+			if (items_count > 0) {
+				body.show();
+				body.prev().show();
+			} else {
+				body.hide();
+				body.prev().hide();
+			}
+
+			head_filter.render_text($("#request_states_count span"), items_count);
+		},
+		set_events: function () {
+			$(".boss-panel-filter[data-attr='request_states'] .m-chips-item").on("click", function() {
+				request_states.render(request_states.data);
+			});
+
+			$("#request_search").on("change keyup", function() {
+				request_states.render(request_states.data);
+			});
+			
+			$("#clear_request_filter").on("click", function() {
+				request_states.clear_filter();
+			});
+			
+			$(document).on("click", ".request-static-modal", function(event) {
+				var uniq_code = $(this).attr("data-id");
+
+				var _arr = request_states.data.result;
+				var index = request_states.find_in_array(_arr, uniq_code, function(a, b) { return a.uniq_request_code == b });
+				if ( index != -1 ) {
+					create_static_window.reqTypeStatic.setValue({
+						id: 0,
+						name: ( _arr[index].request_type_code == 'request_activate_program' ? 'Заявка на добавление тренинг-программы' : (_arr[index].request_type_code == 'request_deactivate_program' ? 'Заявка на закрытие тренинг-программы' : "Заявка на получение уровня") )
+					});
+
+					create_static_window.colStatic.setValue({
+						id: 0,
+						name: decodeURIComponent(_arr[index].fullname)
+					});
+					
+					for ( var i = 0; i < _arr[index].requests.length; i++ ){
+						create_static_window.btnCpStatic.addCompProg({
+							comp_prog_id:  _arr[index].requests[i].compound_prog_id,
+							comp_prog_name: _arr[index].requests[i].compound_prog_name,
+							role_id:  _arr[index].requests[i].role_id,
+							role_name: _arr[index].requests[i].rolle_name,
+							status_id: _arr[index].requests[i].status_id,
+							status_name: getStatusName(_arr[index].requests[i].status_id),
+							comment: _arr[index].requests[i].comment
+						});
+					}
+
+					create_static_window.reqModalStatic.type = _arr[index].request_type_code;
+
+					if (_arr[index].request_type_code) {
+
+						create_static_window.qlAreaStatic.setValue({
+							id: 0,
+							name: _arr[index].requests[0].ql_area
+						});
+						create_static_window.qlLevelStatic.setValue({
+							id: 0,
+							name: _arr[index].requests[0].ql_level
+						});
+					}
+
+					create_static_window.reqModalStatic.showModal();
+
+					function getStatusName(status_id) {
+						if ( status_id == 'active' ) {
+							return 'Новая';
+						}
+
+						if ( status_id == 'close' ) {
+							return 'Согласована';
+						}
+
+						if ( status_id == 'ignore' ) {
+							return 'Отклонена';
+						}
+
+						return '';
+					}
+				}
+			});
+		},
+		search_request_states: function(request_states, request_states_code) {
+			if (request_states.length == 0) {
+				return false;
+			}
+
+			if (request_states.indexOf(request_states_code) === -1) {
+				return true;
+			}
+
+			return false;
+		},
+		search_request_type: function (request_types, request_type_code) {
+			if (request_types.length == 0) {
+				return false;
+			}
+
+			if (request_types.indexOf(request_type_code) === -1) {
+				return true;
+			}
+
+			return false;
+		}
+	}
+	
+	var test_result = {
+		data: {
+			collaboratorId: 0,
+			testId: 0
+		},
+		init: function() {
+			var testElem = $("#test-test-result");
+
+			//пока не выбран сотрудник выбор теста залочен
+			testElem.closest(".m-select-wrap").addClass('m-inactive');
+			test_result.set_events();
+		},
+		clear_filter: function () {
+			var testElem = $("#test-test-result"),
+				collaboratorElem = $("#collab-test-result");
+
+			test_result.data.collaboratorId = 0;
+			collaboratorElem.text("<не выбрано>");
+
+			test_result.data.testId = 0;
+			testElem.text("<не выбрано>");
+			testElem.closest(".m-select-wrap").addClass('m-inactive');
+
+			$("#test_date_from").val(head_filter.date_from_test);
+			$("#test_date_to").val(head_filter.date_to_test);
+
+			$("#send-excel-test-result").closest(".download-excel-wrap").hide();
+		},
+		set_events: function() {
+			$("#test_date_from, #test_date_to").change(function (event) {
+				if (test_result.data.collaboratorId !== 0) {
+					var preloader = jquery_preloader($("body"), 2);
+					preloader.load();
+					$.ajax({
+						type: "POST",
+						url: "/pp/Ext5/extjs_json_collection_data.html",
+						dataType: "json",
+						data: {
+							collection_code: "mars_boss_panel_test",
+							parameters: "collaborator_id=" + test_result.data.collaboratorId + ";date_from=" + $("#test_date_from").val() + ";date_to=" + $("#test_date_to").val()
+						},
+						success: function (data, textStatus, jqXHR) {
+							var testElem = $("#test-test-result");
+
+							preloader.aload();
+
+							if (data.results.length === 0) {
+								//очищаем фильтр Тест
+								test_result.data.testId = 0;
+								testElem.text("<не выбрано>");
+
+								//скрываем кнопку Выгрузить
+								$("#send-excel-test-result").closest(".download-excel-wrap").hide();
+							} else {
+								//проверяем есть ли текущий тест в выборке
+								if (test_result.data.testId !== 0) {
+									var index = -1;
+
+									for (var i = 0; i < data.results.length; i++) {
+										if (data.results[i].id == test_result.data.testId) {
+											index = i;
+											break;
+										}
+									}
+
+									if (index === -1) {
+										//очищаем фильтр Тест
+										test_result.data.testId = 0;
+										testElem.text("<не выбрано>");
+
+										//скрываем кнопку Выгрузить
+										$("#send-excel-test-result").closest(".download-excel-wrap").hide();
+									}
+								}
+							}
+						}
+					});
+				}
+			});
+			$("#collab-test-result").click(function (event) {
+				show_single_window(
+					[
+						{
+							width: 700,
+							header: "Название",
+							dataIndex: "fullname"
+						}
+					],
+					["id", "fullname"],
+					{
+						collection_code: "mars_boss_panel_custom_collaborators",
+						parameters: "user_id=<%=user_id%>;site_id=<%=site_id%>",
+						limit: 20,
+						start: 0
+					},
+					function (selected_object) {
+						var testElem = $("#test-test-result"),
+							collaboratorElem = $("#collab-test-result");
+
+						collaboratorElem.html(selected_object.data.fullname);
+
+						//если пришло новое значение для сотрудника
+						if ( test_result.data.collaboratorId !== selected_object.data.id ) {
+							test_result.data.collaboratorId = selected_object.data.id; 
+
+							//очищаем фильтр Тест
+							test_result.data.testId = 0;
+							testElem.text("<не выбрано>");
+
+							//скрываем кнопку Выгрузить
+							$("#send-excel-test-result").closest(".download-excel-wrap").hide();
+						}
+
+						//разблокируем фильтр Тест
+						testElem.closest(".m-select-wrap").removeClass('m-inactive');
+					},
+					{
+						title: "Выбор сотрудника"
+					}
+				);
+			});
+			
+			$("#test-test-result").click(function (event) {
+				show_single_window(
+					[
+						{
+							width: 300,
+							header: "Название теста",
+							dataIndex: "name"
+						},
+						{
+							width: 150,
+							header: "Дата активации теста",
+							dataIndex: "activeDate"
+						},
+						{
+							width: 190,
+							header: "Дата последнего посещения",
+							dataIndex: "lastUsageDate"
+						},
+						{
+							width: 130,
+							header: "Статус",
+							dataIndex: "statusName"
+						}
+					],
+					["id", "name", "activeDate", "lastUsageDate", "statusName"],
+					{
+						collection_code: "mars_boss_panel_test",
+						parameters: "collaborator_id=" + test_result.data.collaboratorId + ";date_from=" + $("#test_date_from").val() + ";date_to=" + $("#test_date_to").val(),
+						limit: 20,
+						start: 0
+					},
+					function (selected_object) {
+						var testElem = $("#test-test-result")
+
+						test_result.data.testId = selected_object.data.id;
+						testElem.html(selected_object.data.name);
+
+						//открываем кнопку Выгрузить
+						$("#send-excel-test-result").closest(".download-excel-wrap").show();
+					},
+					{
+						title: "Выбор сотрудника"
+					}
+				);
+			});
+
+			$("#send-excel-test-result").click(function (event) {
+				$("#excel-test-result-id").val(test_result.data.testId);
+				$("#excel-form-id").submit();
+			});
+
+			$("#clear_test_filter").click(function (event) {
+				test_result.clear_filter();
+			});
+
+			$("#test_date_from").change(function(e) {
+				if ($(this).val() != "") {
+					$("#test_date_to").datepicker("option", "minDate", $(this).val());
+				}
+			});
+		}
+	}
+
+	var training_program_result = new Ext.data.JsonStore({
+		root: "results",
+		idProperty: "id",
+		fields: ["id", "name"]
+	});
+	var _null={};
+	var dismissal_orders = {
+		data: [],
+		form: $("#dismissal_order_excel"),
+		init: function() {
+			dismissal_orders.get_data();
+			dismissal_orders.set_events();
+		},
+		clear_filter: function() {
+			training_program_result.data.items.length = 0;
+			$("#training_program_filter").empty();
+			$(".boss-panel-filter[data-attr='dismissal_orders'] .m-chips-item").removeClass("active").first().addClass("active");
+			$("#order_search").val("");
+
+			dismissal_orders.render(dismissal_orders.data);
+		},
+		get_data: function () {
+			var result_id = 0;
+			var load_data = function () {
+				$.ajax({
+					type: "POST",
+					url: "/pp/Ext5/extjs_json_collection_data.html",
+					dataType: "json",
+					data: {
+						collection_code: "mars_boss_panel_dissmissal_orders",
+						parameters: "user_id=<%=user_id%>;site_id=<%=site_id%>",
+					},
+					success: function (data) {
+						dismissal_orders.data = data;
+						dismissal_orders.render(dismissal_orders.data);
+						defer_5.resolve();
+					}
+				});
+			};
+
+			load_data();
+		},		
+		search_training_program: function (training_program_ids, training_program_id) {
+			if (training_program_ids.length != 0 && training_program_ids.indexOf(training_program_id) === -1) {
+				return true;
+			}
+
+			return false;
+		},
+		render: function (data) {
+			var body = $(".boss-panel-filter[data-attr='dismissal_orders'] .m-boss-body");
+			body.empty();
+
+			for (var i = 0; i < data.results.length; i++) {			
+				if (dismissal_orders.search_training_program(head_filter.get_ids(training_program_result), data.results[i].training_program_id)) {
+					continue;
+				}
+
+				if (head_filter.search_collaborator($("#order_search"), decodeURIComponent(data.results[i].fullname))) {
+					continue;
+				}
+
+				var button = $("<button/>").addClass("m-btn").attr("data-id", data.results[i].id).html("Выгрузить");
+				button.click(function() {
+					dismissal_orders.download_order($(this).attr("data-id"));
+				})
+
+				body.append(
+					$("<div/>").addClass("m-boss-item m-child").append(
+						$("<div/>").addClass("m-boss-line m-boss-line-nopad js-togg-active").append(
+							$("<div/>").addClass("m-boss-col-1 m-worker m-pointer").text(decodeURIComponent(data.results[i].fullname)),
+							$("<div/>").addClass("m-boss-col-1 m-worker m-pointer").text(decodeURIComponent(data.results[i].qual_name)),
+							$("<div/>").addClass("m-boss-col-3 m-worker m-pointer").text(decodeURIComponent(data.results[i].overdue_date)),
+							$("<div/>").addClass("m-boss-col-4 m-worker m-pointer").append(button)
+						)
+					)
+				);
+			}
+
+			var items_count = body.find(".m-boss-item").length;
+
+			if (items_count > 0) {
+				body.show();
+				body.prev().show();
+			} else {
+				body.hide();
+				body.prev().hide();
+			}
+
+			head_filter.render_text($("#order_count span"), items_count);
+		},
+		download_order: function(order_id) {
+			dismissal_orders.form.find("[name=order_id]").val(order_id);
+			dismissal_orders.form.submit();
+		},
+		set_events: function () {
+			$("#clear_order_filter").on("click", function () {
+				dismissal_orders.clear_filter();
+			});
+
+			$("#order_search").on("change keyup", function() {
+				dismissal_orders.render(dismissal_orders.data);
+			});
+
+			$(document).on("click", "#training_program_filter span", function () {
+				head_filter.delete_item($(this), training_program_result);
+
+				dismissal_orders.render(dismissal_orders.data);
+			});
+
+			$("#training_program_button").on("click", function () {
+				var __this = $(this);
+				var column_array = [{
+					width: 780,
+					header: "Название",
+					dataIndex: "name"
+				}];
+
+				var field_array = ["id", "name"];
+				var input_options = {
+					collection_code: "mars_common_compound_program_with_order",
+					parameters: "",
+					limit: 30,
+					start: 0
+				};
+
+				var close_handler = function() {
+					var training_program_filter = $("#training_program_filter");
+					training_program_filter.empty();
+
+					for (var i = 0; i < training_program_result.data.items.length; i++) {
+						training_program_filter.append($("<span/>").attr("data-id", training_program_result.data.items[i].data.id).text(head_filter.rep(training_program_result.data.items[i].data.name)));
+					}
+
+					dismissal_orders.render(dismissal_orders.data);
+				}
+
+				show_dual_window_all(training_program_result, column_array, field_array, input_options, close_handler, {title: "Участки"});
+			});
+		}
+	};
+
+	var course_orders = {
+		form: $("#course_protocol_form"),
+		init: function() {
+			$("#user_id").val("<%=user_id%>");
+			$("#site_id").val("<%=site_id%>");
+			course_orders.set_events();
+		},
+		clear_filter: function() {
+			$("#course_date_from").val("");
+			$("#course_date_to").val("");
+		},
+		set_events: function() {
+			$("#clear_course_order_filter").on("click", function() {
+				course_orders.clear_filter();
+			});
+
+			$("#course_protocol_btn").on("click", function() {
+				course_orders.download_order();
+			});
+		},
+		download_order: function() {
+			course_orders.form.submit();
+		}
+	};
+
+	var area_result = new Ext.data.JsonStore({
+		root: "results",
+		idProperty: "id",
+		fields: ["id", "name"]
+	});	
+
+	var internships = {
+		data: {
+			internshipsList: [],
+			changesList: []
+		},
+		init: function() {
+			internships.set_events();
+			internships.get_data();
+		},
+		get_data: function()
+		{
+			var parameters = {
+				site_id: '<%=site_id%>',
+				areas: area_result.data.keys,
+				search: $("#internship_search").val()
+			};
+
+            $.ajax({
+				type: "POST",
+				url: "/custom_web_template.html?object_code=mars_boss_panel_api",
+				dataType: "json",
+				data: {
+                    action: "GetCollaboratorsList",
+                    parameters: JSON.stringify(parameters)
+				},
+				success: function (data) {
+					internships.render(data.result);
+				}
+            });
+		},
+		clear_filter: function() {
+			area_result.data.items.length = 0;
+			area_result.data.keys = [];
+
+			$("#area_filter").empty();
+			$("#internship_search").val("");
+
+			internships.get_data();
+		},
+		render: function(data) {
+			var $count = $("#internship_count span");
+			var $container = $("#internship-body");
+
+			$count.text(data.length);
+			$container.empty();
+
+			for (var i = 0; i < data.length; i++) {
+				$container.append(
+					$("<div/>").addClass("m-boss-item m-child").attr("data-id", data[i].id).append(
+						$("<div/>").addClass("m-boss-line m-boss-line-nopad js-togg-active collaborator-row").attr("data-attr", data[i].id).append(
+							$("<i/>").addClass("m-icon-angle"),
+							$("<div/>").addClass("m-boss-col-1 m-worker").text(decodeURIComponent(data[i].fullname)),
+							$("<div/>").addClass("m-boss-col-2 m-worker").text(decodeURIComponent(data[i].site)),
+							$("<div/>").addClass("m-boss-col-3 m-worker").text(decodeURIComponent(data[i].area)),
+							$("<div/>").addClass("m-boss-col-4 m-worker").text(decodeURIComponent(data[i].position_name)),
+							$("<div/>").addClass("m-boss-col-5 m-worker").text(decodeURIComponent(data[i].shift)),
+							$("<div/>").addClass("m-boss-col-6 m-worker").text(decodeURIComponent(data[i].email))
+						)
+					)
+				);
+			}
+		},
+		get_item: function(colId) {
+			preloader.load();
+            $.ajax({
+				type: "POST",
+				url: "/custom_web_template.html?object_code=mars_boss_panel_api",
+				dataType: "json",
+				data: {
+                    action: "GetInternshipsList",
+                    parameters: JSON.stringify({ id: colId })
+				},
+				success: function (data) {
+					internships.render_item(colId, data.result);
+					
+					data.result.map(function(item) {
+						item.internships.map(function(elem) {
+							internships.data.internshipsList.push(elem); 
+						});
+					});
+					
+                    preloader.aload();
+				}
+            });
+		},
+		render_item: function(colId, data) {
+			var $container = $(".m-boss-item[data-id=" + colId + "]");
+			$container.find(".m-inner-wrap").remove();
+
+			for (var i = 0; i < data.length; i++) {
+				$container.append(
+					$("<div/>").addClass("m-inner-wrap").append(
+						$("<div/>").addClass("m-inner").append(
+							$("<div/>").addClass("m-inner-head").text(data[i].name),
+							$("<div/>").addClass("m-inner-body").append(
+								data[i].internships.map(function(elem) {
+									return $("<div/>").addClass("m-inner-item").append(
+									$("<div/>").addClass("m-boss-line m-boss-line-nopad js-togg-active internship-row").attr("data-attr", elem.id).append(
+											$("<div/>").addClass("m-inner-col-1 m-worker").append(
+												$("<a/>").attr({"href": "javascript:;" , "data-id": elem.id})
+													.addClass("black-link")
+													.text(decodeURIComponent(elem.name)
+											)),
+											$("<div/>").addClass("m-inner-col-2 m-worker"),
+											$("<div/>").addClass("m-inner-col-3 m-worker"),
+											$("<div/>").addClass("m-inner-col-4 m-worker").append(
+												$("<div/>").addClass("input-container datepicker").append(
+													$("<input/>")
+														.addClass("internship-date")
+														.attr("style", "padding-left: 20px")
+														.attr("type", "text")
+														.attr("data-id", elem.id)
+														.attr("readonly", "readonly")
+														.attr("value", elem.end_date)
+														.datepicker()
+														.datepicker("option", "minDate", elem.start_date),
+													$("<img/>").addClass("ui-datepicker-trigger").attr("src", "<%=getResourseLink('date-pic.png')%>")
+												)
+											),
+											$("<div/>").addClass("m-inner-col-5 m-worker").append(
+												$("<div/>").addClass("input-wrap input-wrap-pos").append(
+													$("<input/>").attr("id", elem.id)
+														.attr("type", "checkbox").addClass("m-checkbox").prop('checked', elem.is_passed),
+													$("<label/>").attr("for", elem.id).addClass("m-checkbox-label")
+												)
+											),
+											$("<div/>").addClass("m-inner-col-6 m-worker").text(decodeURIComponent(elem.period)),
+											$("<div/>").addClass("m-inner-col-7 m-worker").append(
+												$("<div/>").addClass("m-inner-chip m-" + elem.color).text(decodeURIComponent(elem.status))
+											)		
+										)
+									)
+								})
+							)
+						)
+					)
+				);
+			}
+		},
+		update_changes_list: function(id, value, type) {
+			var temp = internships.data.changesList;
+			var firstElem;
+
+			if (temp.some(function(el) { return el.id == id && el.type == type && el.value != value })) {
+				firstElem = internships.data.changesList.find(function(el) { return el.id == id });
+				if (firstElem != undefined)
+					firstElem.value = value;
+			} else {
+				internships.data.changesList.push({ id: id, value: value, type: type });
+			}
+		},
+		save_data: function(dataUpdate) {
+			preloader.load();
+			$.ajax({
+				type: "POST",
+				url: "/custom_web_template.html?object_code=mars_boss_panel_api",
+				dataType: "json",
+				data: {
+                    action: "UpdateStatusInternship",
+                    parameters: JSON.stringify({ data: dataUpdate })
+				},
+				success: function (data) {
+					$("#panel-save-btn").hide();
+
+                    preloader.aload();
+				}
+            });
+		},
+		set_events: function() {
+			$("#area_button").on("click", function () {
+				var __this = $(this);
+				var column_array = [{
+					width: 780,
+					header: "Название",
+					dataIndex: "name"
+				}];
+
+				var field_array = ["id", "name"];
+				var input_options = {
+					collection_code: "mars_position_area",
+					parameters: "is_site=1",
+					limit: 30,
+					start: 0
+				};
+
+				var close_handler = function() {
+					var area_filter = $("#area_filter");
+					area_filter.empty();
+
+					for (var i = 0; i < area_result.data.items.length; i++) {
+						area_filter.append($("<span/>").attr("data-id", area_result.data.items[i].data.id).text(head_filter.rep(area_result.data.items[i].data.name)));
+					}
+				}
+
+				show_dual_window_all(area_result, column_array, field_array, input_options, close_handler, {title: "Участки"});
+			});
+
+			$(document).on("click", "#area_filter span", function () {
+				head_filter.delete_item($(this), area_result);
+			});
+
+			$(document).on("click", "#internship-body .collaborator-row", function () {
+				$(this).toggleClass("active");
+
+				internships.get_item($(this).attr("data-attr"));
+			});
+
+			$(document).on("click", "#load_internships", function () {
+				internships.get_data();
+			});
+			
+			$(document).on("click", "#clear_internship_filter", function () {
+				internships.clear_filter();
+			});
+
+			$(document).on("change", ".internship-row .internship-date, .internship-row .m-checkbox", function(e) {
+				if ($(this).attr("type") == 'text') {
+					internships.update_changes_list($(this).attr("data-id"), $(this).val(), 'end_date');
+				} else {
+					internships.update_changes_list($(this).attr("id"), $(this).prop("checked"), 'is_passed');
+				}
+
+				if (internships.data.changesList.length != 0) {
+					$("#panel-save-btn").show();
+				} else {
+					$("#panel-save-btn").hide();
+				}
+			});
+
+			$(document).on("click", "#save_internship", function(e) {
+				internships.save_data(internships.data.changesList);
+			});
+
+			$(document).on("click", "#cancel_internship", function(e) {
+				internships.get_data();
+
+				$("#panel-save-btn").hide();
+			});
+
+			$(document).on("click", ".boss-panel-filter[data-attr='internship'] .black-link", function() {
+				var _this = $(this);
+
+				intership_modal_window.render(_this.attr("data-id"));
+				intership_modal_window.show();
+			});
+		}
+	}
+
+	var preloader = jquery_preloader($("body"), 2);
+	
+	create_request_window.create();
+	create_static_window.create();
+	req_modal_btn.set_events();
+	head_filter.set_events();
+	collaborators.init();
+	internships.init();
+
+	preloader.load();
+
+	var defer_2 = $.Deferred(session_shedule.init(true));
+	var defer_3 = $.Deferred(request_states.init());
+	var defer_5 = $.Deferred(dismissal_orders.init());
+	var defer_6 = $.Deferred(course_orders.init());
+	test_result.init();
+
+	$.when(defer_2, defer_3).always(function () {
+		preloader.aload();
+	});
+
+	$.datepicker.regional["ru"] = {
+		closeText: "Закрыть",
+		prevText: "",
+		nextText: "",
+		currentText: "Сегодня",
+		monthNames: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'],
+		monthNamesShort: ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'],
+		dayNames: ['воскресение','понедельник','вторник','среда','четверг','пятница','суббота'],
+		dayNamesShort: ['вск','пнд','втр','срд','чтв','птн','сбт'],
+		dayNamesMin: ["Вс","Пн","Вт","Ср","Чт","Пт","Сб"],
+		dateFormat: "dd.mm.yy",
+		firstDay: 1,
+		isRTL: false,
+		showOn: "both",
+		buttonImageOnly: true,
+		buttonImage: '<%=getResourseLink("date-pic.png")%>',
+		hideIfNoPrevNext: true
+	};
+
+	$.datepicker.setDefaults($.datepicker.regional["ru"]);
+	$("#date_from").datepicker();
+	$("#date_to").datepicker();
+	$("#date_to").datepicker("option", "minDate", "<%=StrDate(now, false, false)%>");
+
+	$("#test_date_from").datepicker();
+	$("#test_date_to").datepicker();
+	$("#test_date_to").datepicker("option", "minDate", "<%=StrDate(now_test, false, false)%>");
+
+	$("#course_date_from").datepicker();
+	$("#course_date_to").datepicker();
+
+	$("#collaborator_modal > div > div > span").click(function(event) {
+		var div = $("#collaborator_modal");
+		var divM = $(div).find(".m-modal");	
+
+		$(div).fadeOut(200,
+			function () {
+				divM.animate({opacity: 1, top: "35%"}, 300);
+			}
+		);
+	});
+
+	$(document).on("click", "#btn-form-internships", function() {
+		$("#excel-form-internships").submit();
+	});
+})()
+</script>
+<%
+}
+else
+{
+%>
+<div class="m-heading-wrap">
+	<h2>Панель руководителя</h2>
+</div>
+<div class="main-child-b padding-xs">
+	Нет прав доступа на просмотр страницы.
+</div>
+<%
+}
+%>
