@@ -1,0 +1,278 @@
+<%
+    // Version: 051219
+    // Author: WebSoft TSA
+
+    var iUserSID = OptInt(Request.Session.sid);
+    var iStoredUserSID = OptInt(tools_web.get_user_data('LAST_SID_' + curUserID), null);
+    var bIsNewEnter = (iStoredUserSID == null || iStoredUserSID != iUserSID);
+
+    var docUser;
+    var teUser;
+
+    var sOperatingMode = tools_web.get_web_param(curParams, 'operating_mode', 'native', true);
+    var sDlgUrl = tools_web.get_web_param(curParams, 'dialog_url', 'dlg_personal_info_verification_CUSTOM.html', true);
+    var iCodeDelay = OptInt(tools_web.get_web_param(curParams, 'code_delay', 60, true));
+
+    var bCheckEmail = tools_web.is_true(tools_web.get_web_param(curParams, 'check_email', false, true));
+    var bCheckPhone = tools_web.is_true(tools_web.get_web_param(curParams, 'check_phone', false, true));
+
+    // Lifetime
+    var iEmailVerificationLifetime = OptInt(tools_web.get_web_param(curParams, 'email_verification_lifetime', 60, true), 60);
+    var iPhoneVerificationLifetime = OptInt(tools_web.get_web_param(curParams, 'phone_verification_lifetime', 60, true), 60);
+    
+    var dEmailVerificationDeadline = DateNewTime(RawSecondsToDate(DateToRawSeconds(new Date()) - (iEmailVerificationLifetime * 86400)), 23, 59, 59);
+    var dPhoneVerificationDeadline = DateNewTime(RawSecondsToDate(DateToRawSeconds(new Date()) - (iPhoneVerificationLifetime * 86400)), 23, 59, 59);
+
+    var bEmailIsVerified = false;
+    if (bCheckEmail) {
+        switch (sOperatingMode) {
+            case 'custom_elems':
+                bEmailIsVerified = curUser.custom_elems.GetOptChildByKey('email_conf');
+                bEmailIsVerified = tools_web.is_true(bEmailIsVerified != undefined ? bEmailIsVerified.value : false);
+                
+                if (bEmailIsVerified) {
+                    dEmailVerificationDate = curUser.custom_elems.GetOptChildByKey('email_conf_date');
+                    dEmailVerificationDate = dEmailVerificationDate != undefined ? OptDate(dEmailVerificationDate.value, (new Date('1970-01-01'))) : new Date('1970-01-01');
+
+                    if (dEmailVerificationDate <= dEmailVerificationDeadline) {
+                        docUser = docUser == undefined ? tools.open_doc(curUserID) : docUser;
+                        teUser = teUser == undefined ? docUser.TopElem : teUser;
+
+                        teUser.custom_elems.ObtainChildByKey('email_conf').value = false;
+                        docUser.Save();
+
+                        Session.Env.SetProperty('curUser', teUser.Clone());
+                        bEmailIsVerified = false;
+                    }
+                }
+            break
+            case 'native':
+            default:
+                bEmailIsVerified = tools_web.is_true(curUser.GetOptProperty('email_conf', false));
+
+                if (bEmailIsVerified) {
+                    dEmailVerificationDate = curUser.GetOptProperty('email_conf_date', undefined);
+                    dEmailVerificationDate = dEmailVerificationDate != undefined ? OptDate(dEmailVerificationDate, (new Date('1970-01-01'))) : new Date('1970-01-01');
+
+                    if (dEmailVerificationDate <= dEmailVerificationDeadline) {
+                        docUser = docUser == undefined ? tools.open_doc(curUserID) : docUser;
+                        teUser = teUser == undefined ? docUser.TopElem : teUser;
+
+                        teUser.Child('email_conf').Value = false;
+                        docUser.Save();
+
+                        Session.Env.SetProperty('curUser', teUser.Clone());
+                        bEmailIsVerified = false;
+                    }
+                }
+            break
+        }
+    }
+
+    var bRequiredEmailVerification = bCheckEmail && !bEmailIsVerified;
+    // var bRequiredEmailVerification = bCheckEmail && !tools_web.is_true(curUser.custom_elems.GetOptProperty('email_is_verified', false));    // rework
+    
+    var bPhoneIsVerified = false;
+    if (bCheckPhone) {
+        switch (sOperatingMode) {
+            case 'custom_elems':
+                bPhoneIsVerified = curUser.custom_elems.GetOptChildByKey('mobile_phone_conf');
+                bPhoneIsVerified = tools_web.is_true(bPhoneIsVerified != undefined ? bPhoneIsVerified.value : false);
+                
+                if (bPhoneIsVerified) {
+                    dPhoneVerificationDate = curUser.custom_elems.GetOptChildByKey('mobile_phone_conf_date');
+                    dPhoneVerificationDate = dPhoneVerificationDate != undefined ? new Date(dPhoneVerificationDate.value) : new Date('01.01.1970');
+
+                    if (dPhoneVerificationDate <= dPhoneVerificationDeadline) {
+                        docUser = docUser == undefined ? tools.open_doc(curUserID) : docUser;
+                        teUser = teUser == undefined ? docUser.TopElem : teUser;
+
+                        teUser.custom_elems.ObtainChildByKey('mobile_phone_conf').value = false;
+                        docUser.Save();
+
+                        Session.Env.SetProperty('curUser', teUser.Clone());
+                        bPhoneIsVerified = false;
+                    }
+                }
+            break
+            case 'native':
+            default:
+                bPhoneIsVerified = tools_web.is_true(curUser.GetOptProperty('mobile_phone_conf', false));
+
+                if (bPhoneIsVerified) {
+                    dPhoneVerificationDate = curUser.GetOptProperty('mobile_phone_conf_date', undefined);
+                    dPhoneVerificationDate = dPhoneVerificationDate != undefined ? new Date(dPhoneVerificationDate) : new Date('01.01.1970');
+
+                    if (dPhoneVerificationDate <= dPhoneVerificationDeadline) {
+                        docUser = docUser == undefined ? tools.open_doc(curUserID) : docUser;
+                        teUser = teUser == undefined ? docUser.TopElem : teUser;
+
+                        teUser.Child('mobile_phone_conf').Value = false;
+                        docUser.Save();
+
+                        Session.Env.SetProperty('curUser', teUser.Clone());
+                        bPhoneIsVerified = false;
+                    }
+                }
+            break
+        }
+    }
+    var bRequiredPhoneVerification = bCheckPhone && !bPhoneIsVerified;
+    // var bRequiredPhoneVerification = bCheckPhone && !tools_web.is_true(curUser.custom_elems.GetOptProperty('phone_is_verified', false));   // rework
+    
+    // var bAllowUserSkipVerification = tools_web.is_true(curUser.custom_elems.GetOptProperty('allow_skip_verification', false));  // rework
+    // var bAllowSkipVerification = bAllowUserSkipVerification || tools_web.is_true(tools_web.get_web_param(curParams, 'allow_skip', false, true));
+    var bAllowSkipVerification = tools_web.is_true(tools_web.get_web_param(curParams, 'allow_skip', false, true));
+    if ((bRequiredEmailVerification || bRequiredPhoneVerification) && (!bAllowSkipVerification || bIsNewEnter)) {
+        tools_web.set_user_data('LAST_SID_' + curUserID, iUserSID, 86400);
+        //tools_web.write_custom_web_template('modal_personal_info_veritifcation', null);
+        sUrlParams =  '?operating_mode=' + sOperatingMode;
+        sUrlParams += '&required_email=' + bRequiredEmailVerification;
+        sUrlParams += '&required_phone=' + bRequiredPhoneVerification;
+        sUrlParams += '&code_delay=' + iCodeDelay;
+%>
+<style type="text/css">
+    /* Modal frame */
+    .cx-modal-container { position: fixed; display: none; left: 0; top: 0; width: 100%; height: 100%; z-index: 10000; }
+    .cx-modal-mask { position: absolute; left: 0; top: 0; right: 0; bottom: 0; background-color: #333; opacity: 0.8; z-index: 10001; }
+    .cx-modal { position: fixed; display: flex; flex-direction: row; left: 0; top: 0; width: 100%; height: 100%; z-index: 10002; }
+    .cx-modal-frame-container { display: flex; flex-direction: column; flex-grow: 1; }
+    .cx-modal-frame-wrapper { display: flex; flex-direction: column; flex-grow: 1; padding: 1em; }
+    .cx-modal-frame{ display: block; width: 100%; flex-grow: 1; border: none; overflow: hidden; }
+    .cx-modal-btns-container { display: flex; flex-direction: column; width: 8em; padding: 2em; }
+    .cx-btn-modal-close { display: block; cursor: pointer; width: 6em; height: 6em; border-radius: 50%; border: none; outline: none; background-color: #eee; fill: #666; padding: 0.4em 0 0 0; box-shadow: 0 0 1rem rgba(0,0,0,0.33); }
+    .cx-btn-modal-close svg { width: 4em; height: 4em; }
+    .cx-btn-modal-close:hover { background-color: #fff; fill: #315DFA; }
+    @media screen and (max-width: 1175px) {
+        .cx-modal-btns-container { display: flex; flex-direction: column; width: 6em; padding: 1em; }
+        .cx-btn-modal-close { display: block; cursor: pointer; width: 5em; height: 5em; border-radius: 50%; border: none; outline: none; background-color: #eee; fill: #666; padding: 0.4em 0 0 0; box-shadow: 0 0 1rem rgba(0,0,0,0.33); }
+        .cx-btn-modal-close svg { width: 4em; height: 4em; }
+    }
+    @media screen and (max-width: 1023px) {
+        .cx-modal-btns-container { display: flex; flex-direction: column; width: 5em; padding: 1em; }
+        .cx-modal-btns-container.cx-modal-btns-1 {width: 3em; padding: 0;}
+        .cx-btn-modal-close { display: block; cursor: pointer; width: 4em; height: 4em; border-radius: 50%; border: none; outline: none; background-color: #eee; fill: #666; padding: 0.4em 0 0 0; box-shadow: 0 0 1rem rgba(0,0,0,0.33); }
+        .cx-btn-modal-close svg { width: 3em; height: 3em; }
+    }
+    @media screen and (max-width: 867px) {
+        .cx-modal-btns-container { display: flex; flex-direction: column; width: 5em; padding: 1em; }
+        .cx-modal-btns-container.cx-modal-btns-1 {width: 1em; padding: 0;}
+        .cx-btn-modal-close { display: block; cursor: pointer; width: 4em; height: 4em; border-radius: 50%; border: none; outline: none; background-color: #eee; fill: #666; padding: 0.4em 0 0 0; box-shadow: 0 0 1rem rgba(0,0,0,0.33); }
+        .cx-btn-modal-close svg { width: 3em; height: 3em; }
+    }
+    @media screen and (max-width: 680px) {
+        .cx-modal { flex-direction: column-reverse; }
+	    .cx-modal-btns-container { display: flex; flex-direction: row-reverse; height: 4.4em; padding: 0 1em; width: 100%; box-sizing: border-box;}
+        .cx-modal-btns-container.cx-modal-btns-1 {display: none;}
+        .cx-btn-modal-close { display: block; cursor: pointer; width: 4em; height: 4em; border-radius: 50%; border: none; outline: none; background-color: #eee; fill: #666; padding: 0.4em 0 0 0; box-shadow: 0 0 1rem rgba(0,0,0,0.33); }
+        .cx-btn-modal-close svg { width: 3em; height: 3em; }
+    }
+    @media screen and (max-width: 479px) {
+        .cx-modal { flex-direction: column-reverse; }
+        .cx-modal-btns-container { display: flex; flex-direction: row-reverse; height: 3.4em; padding: 0 1em; width: 100%; box-sizing: border-box;}
+        .cx-modal-btns-container.cx-modal-btns-1 {display: none;}
+        .cx-btn-modal-close { display: block; cursor: pointer; width: 3em; height: 3em; border-radius: 50%; border: none; outline: none; background-color: #eee; fill: #666; padding: 0.4em 0 0 0; box-shadow: 0 0 1rem rgba(0,0,0,0.33); }
+        .cx-btn-modal-close svg { width: 2.4em; height: 2.4em; }
+    }
+</style>
+<!-- modalframe template -->
+<div class="cx-modal-container" cx-role="modal-container">
+    <div class="cx-modal-mask" cx-role="preview-mask">&nbsp;</div>
+    <div class="cx-modal" cx-role="preview-container">
+        <div class="cx-modal-btns-container cx-modal-btns-1" cx-role="modal-btns"></div>
+        <div class="cx-modal-frame-container">
+            <div class="cx-modal-frame-wrapper" cx-role="frame-wrapper">
+                <iframe class="cx-modal-frame" cx-role="modal-frame" src="/cx/blank.html"></iframe>
+            </div>
+        </div>
+        <div class="cx-modal-btns-container cx-modal-btns-2" cx-role="modal-btns">
+            <% if (bAllowSkipVerification) { %>
+            <button class="cx-btn-modal-close" cx-role="modal-close">
+                <svg viewBox="0 0 512 512">
+                    <path d="M437.5,386.6L306.9,256l130.6-130.6c14.1-14.1,14.1-36.8,0-50.9c-14.1-14.1-36.8-14.1-50.9,0L256,205.1L125.4,74.5 c-14.1-14.1-36.8-14.1-50.9,0c-14.1,14.1-14.1,36.8,0,50.9L205.1,256L74.5,386.6c-14.1,14.1-14.1,36.8,0,50.9 c14.1,14.1,36.8,14.1,50.9,0L256,306.9l130.6,130.6c14.1,14.1,36.8,14.1,50.9,0C451.5,423.4,451.5,400.6,437.5,386.6z"/>
+                </svg>
+            </button>
+            <% } %>
+        </div>
+    </div>
+</div>
+<!-- / modalframe template -->
+<script type="text/javascript">
+if (window.CXModalFrame == undefined) {
+    window.CXModalFrame = function (oArgs) {
+        this.sVersion = "191127";
+        this.jContainer = oArgs.jContainer;
+        this.Constructor();
+        return this;
+    };
+    CXModalFrame.prototype.Adjust = function (oArgs) {
+        var nAvailH = this.jFrameWrapper.height();
+        var nContentH = this.jFrame.contents().find(".wt-pp-body").outerHeight(true) + 2;
+        if (nContentH > 200 && nContentH < nAvailH) {
+            this.jFrameWrapper.css({ "justify-content": "center" });
+            this.jFrame.css({ "flex-grow": "0" }).height(nContentH);
+        }
+        else {
+            this.jFrame.height(nAvailH);
+        }
+        return this;
+    };
+    CXModalFrame.prototype.Constructor = function (oArgs) {
+        var oThis = this;
+        this.jContainer.hide();
+        this.jMask = this.jContainer.find("[cx-role='preview-mask']");
+        this.jBlock = this.jContainer.find("[cx-role='preview-container']");
+        this.jWrapper = this.jBlock.find("[cx-role='wrapper-desktop']");
+        this.jFrame = this.jBlock.find("[cx-role='modal-frame']");
+        this.jFrameWrapper = this.jBlock.find("[cx-role='frame-wrapper']");
+        this.jBtns = this.jBlock.find("[cx-role='modal-btns']");
+        this.jBtnClose = this.jBlock.find("[cx-role='modal-close']").on("click", function (e) { oThis.UIEvent.call(oThis, { oElem: this, oEvt: e }); });
+        
+        this.jFrame.on('close_modal', function(oEvent) {
+            oThis.Hide();
+        });
+        
+        return this;
+    };
+    CXModalFrame.prototype.Hide = function (oArgs) {
+        this.jContainer.fadeOut("fast");
+        return this;
+    };
+    CXModalFrame.prototype.SetParams = function (oArgs) {
+        return this;
+    };
+    CXModalFrame.prototype.SetSrc = function (oArgs) {
+        this.jFrame[0].setAttribute("src", oArgs.sSrc);
+        return this;
+    };
+    CXModalFrame.prototype.Show = function (oArgs) {
+        this.SetParams(oArgs);
+        this.SetSrc(oArgs);
+        this.jContainer.appendTo("body").fadeIn("fast");
+        return this;
+    };
+    CXModalFrame.prototype.UIEvent = function (oArgs) {
+        switch (oArgs.oElem.getAttribute("cx-role")) {
+            case "modal-close":
+                {
+                    this.Hide();
+                    break;
+                }
+        }
+        return this;
+    }
+}
+
+var g_oFM = null;
+var OpenModalFrame = function(sUrl) {
+    g_oFM = new CXModalFrame({ jContainer: $("[cx-role='modal-container']") });
+    g_oFM.Show({ "sSrc": sUrl });
+}
+var sUrlParams = '<%=sUrlParams%>';
+
+$(document).ready(function() { OpenModalFrame('<%=sDlgUrl%>' + sUrlParams); });
+</script>
+<%
+    }
+%>
+

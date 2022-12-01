@@ -1,0 +1,189 @@
+<%
+// Version: 051219
+// Author: WebSoft TSA
+
+var CODE_LENGTH = 6;
+var CODE_DICT = 'qwertyuiopasdfghjklzxcvbnm1234567890';
+var CODE_UPPERCASE = true;
+
+Server.Execute('./include/user_init.html');
+
+function fnFormError(sText, iCode) {
+    var oError = new Object();
+        oError.SetProperty('error', true);
+        oError.SetProperty('error_message', sText);
+        oError.SetProperty('error_code', iCode);
+
+    return oError;
+}
+
+function fnSendCode(sType, sTarget) {
+    var oRes = new Object();
+    var sVerificationCode = tools.random_string(CODE_LENGTH, CODE_DICT);
+        sVerificationCode = CODE_UPPERCASE ? StrUpperCase(sVerificationCode) : sVerificationCode;
+
+    switch (sType) {
+        case 'phone':
+            g_teCurUser.Child('mobile_phone').Value = sTarget;
+
+            if (g_sOperatingMode == 'native') {
+                g_teCurUser.Child('mobile_phone_conf_code').Value = sVerificationCode;
+            } else {
+                g_teCurUser.custom_elems.ObtainChildByKey('mobile_phone_conf_code').value = sVerificationCode;
+            }
+
+            g_docCurUser.Save();
+
+            if (tools.create_notification('mobile_phone_conf', curUserID, g_sOperatingMode)) {
+                oRes.SetProperty('error', false);
+                oRes.SetProperty('data', { length: CODE_LENGTH });
+            } else {
+                return fnFormError('Notification sending failed', '500');
+            }
+        break
+        case 'email':
+//            g_teCurUser.Child('email').Value = sTarget;
+            g_teCurUser.custom_elems.ObtainChildByKey('custom_email').value = sTarget;
+
+            if (g_sOperatingMode == 'native') {
+                g_teCurUser.Child('email_conf_code').Value = sVerificationCode;
+            } else { 
+                g_teCurUser.custom_elems.ObtainChildByKey('email_conf_code').value = sVerificationCode;
+            }
+
+            g_docCurUser.Save();
+
+            if (tools.create_notification('email_conf_code', curUserID, g_sOperatingMode)) {
+                oRes.SetProperty('error', false);
+                oRes.SetProperty('data', { length: CODE_LENGTH });
+            } else {
+                return fnFormError('Notification sending failed', '500');
+            }
+        break
+        default:
+            return fnFormError('Unsupported type value', 500);
+    }
+
+    return oRes;
+}
+
+function fnMatchCodes(sType, sCode) {
+    var oRes = new Object();
+    var bCodesMatch = false;
+
+    switch (sType) {
+        case 'phone':
+            if (g_sOperatingMode == 'native')
+                var sCurConfCode = g_teCurUser.GetOptProperty('mobile_phone_conf_code', null);
+            else
+                var sCurConfCode = g_teCurUser.custom_elems.ObtainChildByKey('mobile_phone_conf_code').value;
+        break
+        case 'email':
+            if (g_sOperatingMode == 'native')
+                var sCurConfCode = g_teCurUser.GetOptProperty('email_conf_code', null);
+            else
+                var sCurConfCode = g_teCurUser.custom_elems.ObtainChildByKey('email_conf_code').value;
+        break
+        default:
+            return fnFormError('Unsupported type value', 500);
+    }
+    bCodesMatch = (sCurConfCode == sCode);
+
+    oRes.SetProperty('error', false);
+    oRes.SetProperty('data', { codes_match: bCodesMatch });
+
+    return oRes;
+}
+
+function fnVerifyInfo(sType) {
+    switch (sType) {
+        case 'phone':
+            if (g_sOperatingMode == 'native') {
+                g_teCurUser.Child('mobile_phone_conf_code').Value = '';
+                g_teCurUser.Child('mobile_phone_conf_date').Value = new Date();
+                g_teCurUser.Child('mobile_phone_conf').Value = true;
+            } else {
+                g_teCurUser.custom_elems.ObtainChildByKey('mobile_phone_conf_code').value = '';
+                g_teCurUser.custom_elems.ObtainChildByKey('mobile_phone_conf_date').value = new Date();
+                g_teCurUser.custom_elems.ObtainChildByKey('mobile_phone_conf').value  = true;
+            }
+        break
+        case 'email':
+            if (g_sOperatingMode == 'native') {
+                g_teCurUser.Child('email_conf_code').Value = '';
+                g_teCurUser.Child('email_conf_date').Value = new Date();
+                g_teCurUser.Child('email_conf').Value = true;
+            } else {
+                g_teCurUser.custom_elems.ObtainChildByKey('email_conf_code').value = '';
+                g_teCurUser.custom_elems.ObtainChildByKey('email_conf_date').value = new Date();
+                g_teCurUser.custom_elems.ObtainChildByKey('email_conf').value  = true;
+            }
+        break
+    }
+
+    g_docCurUser.Save();
+
+    return true;
+}
+
+var g_sAction = Request.Query.GetOptProperty('action');
+var g_sOperatingMode = Request.Query.GetOptProperty('operating_mode', 'native');
+    g_sOperatingMode = g_sOperatingMode == '' ? 'native' : g_sOperatingMode;
+
+var g_docCurUser = tools.open_doc(curUserID);
+if (g_docCurUser == undefined) {
+    Response.Write(EncodeJson(fnFormError('User document is corrupted', 500)));
+    Cancel();
+}
+var g_teCurUser = g_docCurUser.TopElem;
+
+if (g_sOperatingMode == 'native' || g_sOperatingMode == 'custom_elems') {
+    switch (g_sAction) {
+        case 'send_code':
+            var sType = Request.Query.GetOptProperty('type');
+            if (sType == undefined) {
+                Response.Write(EncodeJson(fnFormError('Unknown type value', 500)));
+                break
+            }
+
+            var sTarget = Request.Query.GetOptProperty('target');
+            if (sTarget == undefined) {
+                Response.Write(EncodeJson(fnFormError('Unknown target value', 500)));
+                break
+            }
+
+            Session.Env.SetProperty('curUser', g_teCurUser.Clone());
+            Response.Write(EncodeJson(fnSendCode(sType, sTarget)));
+        break
+        case 'match_code':
+            var sType = Request.Query.GetOptProperty('type');
+            if (sType == undefined) {
+                Response.Write(EncodeJson(fnFormError('Unknown type value', 500)));
+                break
+            }
+
+            var sCode = Request.Query.GetOptProperty('code');
+            if (sCode == undefined) {
+                Response.Write(EncodeJson(fnFormError('Missing code value', 500)));
+                break
+            }
+
+            var oMatchResult = fnMatchCodes(sType, sCode);
+            if (!oMatchResult.error) {
+                if (oMatchResult.data.codes_match == true) {
+                    fnVerifyInfo(sType);
+                    Session.Env.SetProperty('curUser', g_teCurUser.Clone());
+                }
+
+                Response.Write(EncodeJson(oMatchResult));
+            } else {
+                Response.Write(EncodeJson(oMatchResult));
+            }
+        break
+        default:
+            Response.Write(EncodeJson(fnFormError('Unknown action value', 500)));
+    }
+} else {
+    Response.Write(EncodeJson(fnFormError('Unsupported operating mode! Permissible values: "native", "custom_elems" or empty')));
+}
+%>

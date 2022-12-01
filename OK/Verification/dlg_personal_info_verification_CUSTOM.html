@@ -1,0 +1,485 @@
+﻿<%
+    // Version: 051219
+    // Author: WebSoft TSA
+
+    Server.Execute('include/access_init.html');
+    Server.Execute('include/head.html');
+%>
+<style type="text/css">
+    body { display: flex; flex: 1 0 auto; justify-content: center; align-items: center; background-color: transparent; }
+</style>
+<form class="ws-verification" name="verification" action="#">
+    <h2 class="ws-verification__title">Подтвердите Ваши данные</h2>
+    <div class="ws-verification__content">
+        <div class="ws-label-container" wt-container="phone_number">
+            <label class="ws-label" wt-container="label" wt-role="value">
+                <div class="ws-label__title" wt-role="title">Номер телефона</div>
+                <div class="ws-label__current-value" wt-role="current_value"></div>
+                <input
+                    wt-role="input_value"
+                    autocomplete="off"
+                    type="text"
+                    class="ws-label__value"
+                    name="phone_number"/>
+            </label>
+            <label class="ws-label" wt-container="label" wt-role="code">
+                <div class="ws-label__title" wt-role="title">Проверочный код</div>
+                <input
+                    wt-role="input_value"
+                    autocomplete="off"
+                    type="text"
+                    class="ws-label__value"
+                    name="phone_code"/>
+            </label>
+            <div class="ws-label-container__warning" wt-role="warning"></div>
+            <div class="ws-label-container__info" wt-role="info"></div>
+            <div class="ws-label-container__controls" wt-container="controls">
+                <button
+                    type="button"
+                    disabled="disabled"
+                    class="ws-btn ws-btn--primary"
+                    wt-role="send_code">Запросить код</button>
+                <button
+                    type="button"
+                    class="ws-btn ws-btn--text-only"
+                    wt-role="change_value">Это не мой номер</button>
+            </div>
+            <div class="ws-label-container__done" wt-role="verification_done">
+                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                    <g>
+                        <path d="M16,2A14,14,0,1,0,30,16,14,14,0,0,0,16,2Zm0,26A12,12,0,1,1,28,16,12,12,0,0,1,16,28Z"/>
+                        <path d="M13.38,19.59l-3.29-3.3L8.67,17.71,12,21a2,2,0,0,0,1.42.58A2,2,0,0,0,14.79,21l8.54-8.54-1.42-1.41Z"/>
+                    </g>
+                </svg>
+                <span wt-role="title"></span>
+            </div>
+        </div>
+        <div class="ws-label-container" wt-container="email">
+            <label class="ws-label" wt-container="label" wt-role="value">
+                <div class="ws-label__title" wt-role="title">E-Mail адрес</div>
+                <div class="ws-label__current-value" wt-role="current_value"></div>
+                <input
+                    wt-role="input_value"
+                    autocomplete="off"
+                    type="text"
+                    class="ws-label__value"
+                    name="phone_number"/>
+            </label>
+            <label class="ws-label" wt-container="label" wt-role="code">
+                <div class="ws-label__title" wt-role="title">Проверочный код</div>
+                <input
+                    wt-role="input_value"
+                    autocomplete="off"
+                    type="text"
+                    class="ws-label__value"
+                    name="phone_code"/>
+            </label>
+            <div class="ws-label-container__warning" wt-role="warning"></div>
+            <div class="ws-label-container__info" wt-role="info"></div>
+            <div class="ws-label-container__controls" wt-container="controls">
+                <button
+                    type="button"
+                    disabled="disabled"
+                    class="ws-btn ws-btn--primary"
+                    wt-role="send_code">Запросить код</button>
+                <button
+                    type="button"
+                    class="ws-btn ws-btn--text-only"
+                    wt-role="change_value">Это не мой e-mail</button>
+            </div>
+            <div class="ws-label-container__done" wt-role="verification_done">
+                <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+                    <g>
+                        <path d="M16,2A14,14,0,1,0,30,16,14,14,0,0,0,16,2Zm0,26A12,12,0,1,1,28,16,12,12,0,0,1,16,28Z"/>
+                        <path d="M13.38,19.59l-3.29-3.3L8.67,17.71,12,21a2,2,0,0,0,1.42.58A2,2,0,0,0,14.79,21l8.54-8.54-1.42-1.41Z"/>
+                    </g>
+                </svg>
+                <span wt-role="title"></span>
+            </div>
+        </div>
+    </div>
+</form>
+<script type="text/javascript">
+    var sStartPhoneValue = '<%=curUser.mobile_phone%>';
+    var sStartEmailValue = '';
+<%
+    g_docCurUser = tools.open_doc(curUserID);
+    if (g_docCurUser != undefined) {
+        g_teCurUser = g_docCurUser.TopElem;
+        custon_email = g_teCurUser.custom_elems.ObtainChildByKey("custom_email").value;
+    }
+%>
+    sStartEmailValue = '<%=custon_email%>';
+</script>
+<script type="text/javascript" src="./scripts/jquery.js"></script>
+<script type="text/javascript" src="./scripts/jqplugins/jquery.inputmask.min.js"></script>
+<script type="text/javascript">
+window.VerificationForm = function(oArgs) {
+    if (typeof this.constructor === 'function')
+        this.constructor(oArgs);
+
+    return this;
+}
+
+VerificationForm.prototype.constructor = function(oArgs) {
+    if (typeof oArgs.bCloneArgs === 'boolean' ? bCloneArgs : true) {
+        for (sKey in oArgs)
+            this[sKey] = oArgs[sKey];
+    }
+
+    this.jContainer.on('submit', function(oEvent) { oEvent.preventDefault(); });
+    if (typeof oArgs.oPhone === 'object' && oArgs.oPhone.bVerify)
+        this.oPhone = new VerificationLabel(this.oPhone).init();
+
+    if (typeof oArgs.oEmail === 'object' && oArgs.oEmail.bVerify)
+        this.oEmail = new VerificationLabel(this.oEmail).init();
+
+    this.bIsAllDone = false;
+
+    return this;
+}
+
+VerificationForm.prototype.isDone = function(sType) {
+    return (typeof this.oPhone === 'undefined' || !this.oPhone.bVerify || this.oPhone.bIsDone)
+            && (typeof this.oEmail === 'undefined' || !this.oEmail.bVerify || this.oEmail.bIsDone);
+}
+
+window.VerificationLabel = function(oArgs) {
+    if (typeof this.constructor === 'function')
+        this.constructor(oArgs);
+
+    return this;
+}
+
+VerificationLabel.prototype.constructor = function(oArgs) {
+    var oThis = this;
+
+    if (oArgs.bCloneArgs = typeof oArgs.bCloneArgs === 'boolean' ? bCloneArgs : true) {
+        for (sKey in oArgs)
+            this[sKey] = oArgs[sKey];
+    }
+
+    this.bIsDone = false;
+
+    this.sType = typeof this.sType === 'undefined' ? oArgs.sType : this.sType;
+    this.sSelector = typeof this.sSelector === 'undefined' ? oArgs.sSelector : this.sSelector;
+    this.jContainer = typeof this.jContainer === 'undefined' ? $(this.sSelector) : this.jContainer;
+    this.jInfo = typeof this.jInfo === 'undefined' ? this.jContainer.find('[wt-role="info"]') : this.jInfo;
+    this.jWarning = typeof this.jWarning === 'undefined' ? this.jContainer.find('[wt-role="warning"]') : this.jWarning;
+
+    // Value
+    this.jLabelValue = typeof this.jLabelValue === 'undefined' ? this.jContainer.find('[wt-role="value"]') : this.jLabelValue;
+    this.jTitle = typeof this.jTitle === 'undefined' ? this.jLabelValue.find('[wt-role="title"]') : this.jTitle;
+    this.jCurrentValue = typeof this.jCurrentValue === 'undefined' ? this.jLabelValue.find('[wt-role="current_value"]') : this.jCurrentValue;
+    this.jInputValue = typeof this.jInputValue === 'undefined' ? this.jLabelValue.find('[wt-role="input_value"]') : this.jInputValue;
+    this.sInputMask = typeof this.sInputMask === 'undefined' ? oArgs.sInputMask : this.sInputMask;
+   
+    this.sValue = typeof this.sValue === 'undefined' ? (typeof oArgs.sValue !== 'undefined' ? oArgs.sValue : '') : this.sValue;
+    
+    this.jInputValue.inputmask(this.sInputMask, {
+        'onincomplete': function() { oThis.onInputIncomplete(this); },
+        'oncomplete': function() { oThis.onInputComplete(this); },
+        'oncleared': function() { oThis.onInputCleared(this); }
+    });
+
+    // Code
+    this.jLabelCode = typeof this.jLabelCode === 'undefined' ? this.jContainer.find('[wt-role="code"]') : this.jLabelCode;
+    this.jCodeTitle = typeof this.jCodeTitle === 'undefined' ? this.jLabelCode.find('[wt-role="title"]') : this.jCodeTitle;
+    this.jCodeInput = typeof this.jCodeInput === 'undefined' ? this.jLabelCode.find('[wt-role="input_value"]') : this.jCodeInput;
+
+    this.bCodeLoading = false;
+    this.bCodeMatching = false;
+
+    this.jCodeInput.on('keyup paste', function(oEvent) {
+        if ((oEvent.keyCode || oEvent.which) != 17 && !oThis.bCodeMatching && !oEvent.ctrlKey) {
+            if (oEvent.type == 'paste') {
+                setTimeout(function () {
+                    if (oThis.jCodeInput.val().length == oThis.jCodeInput.attr('maxlength')) {
+                        oThis.onMatchCode();
+                    }
+                }, 0);
+            } else {
+                if (oThis.jCodeInput.val().length == oThis.jCodeInput.attr('maxlength'))
+                    oThis.onMatchCode();
+            }
+        }
+    });
+    this.jCodeInput.on('keypress', function(oEvent) {
+        if (!oThis.bCodeMatching && oThis.jCodeInput.val().length == oThis.jCodeInput.attr('maxlength') && (oEvent.keyCode || oEvent.which) == 13)
+            oThis.onMatchCode();
+    });
+
+    // Controls
+    this.jControls = typeof this.jControls === 'undefined' ? this.jContainer.find('[wt-container="controls"]') : this.jControls;
+    
+    this.jSendCode = typeof this.jSendCode === 'undefined' ? this.jControls.find('[wt-role="send_code"]') : this.jSendCode;
+    this.jSendCode.on('click', function() {
+        if (!oThis.bCodeLoading)
+            oThis.onGetCode();
+    });
+
+    this.jChangeValue = typeof this.jChangeValue === 'undefined' ? this.jControls.find('[wt-role="change_value"]') : this.jChangeValue;
+    this.jChangeValue.on('click', function() { oThis.showInput(); });
+
+    this.oCodeTimer;
+    this.iCodeTick;
+
+    // Done
+    this.jDoneContainer = typeof this.jDoneContainer === 'undefined' ? this.jContainer.find('[wt-role="verification_done"]') : this.jDoneContainer;
+    this.jDoneTitle = typeof this.jDoneTitle === 'undefined' ? this.jDoneContainer.find('[wt-role="title"]') : this.jDoneTitle;
+
+    return this;
+}
+
+VerificationLabel.prototype.init = function() {
+    var oThis = this;
+
+    this.setValue(this.sValue);
+
+    if (this.sValue !== '')
+        this.showCurrentValue();
+    else
+       this.showInput();
+
+    this.jContainer.css('display', 'flex');
+
+    return this;
+}
+
+VerificationLabel.prototype.showCurrentValue = function() {
+    this.jInputValue.hide();
+    this.jCurrentValue.show();
+    this.jChangeValue.show();
+    this.jSendCode.removeAttr('disabled');
+
+    // this.hideCodeLabel();
+}
+
+VerificationLabel.prototype.showInput = function() {
+    this.jCurrentValue.hide();
+    this.jChangeValue.hide();
+    this.jInputValue.show();
+    this.jSendCode.attr('disabled', 'disabled');
+
+    this.hideCodeLabel();
+}
+
+VerificationLabel.prototype.setValue = function(sValue) {
+    this.jCurrentValue.html(sValue);
+    this.jInputValue.val(sValue);
+
+    return this;
+}
+
+VerificationLabel.prototype.getValue = function() {
+    return this.jInputValue.val();
+}
+
+VerificationLabel.prototype.onInputIncomplete = function(oElem) {
+    this.jSendCode.attr('disabled', 'disabled');
+}
+
+VerificationLabel.prototype.onInputComplete = function(oElem) {
+    this.jSendCode.removeAttr('disabled');
+}
+
+VerificationLabel.prototype.onInputCleared = function(oElem) {
+    this.jSendCode.attr('disabled', 'disabled');
+}
+
+VerificationLabel.prototype.hideCodeLabel = function() {
+    var oThis = this;
+
+    this.jLabelCode.slideUp('fast', function() {
+        oThis.jInfo.slideUp('fast', function() { oThis.jInfo.html(''); });
+        if (oThis.oCodeTimer != undefined) {
+            clearInterval(oThis.oCodeTimer);
+            oThis.oCodeTimer = undefined;
+        }
+        
+        oThis.jWarning.slideUp('fast', function() { oThis.jWarning.html(''); });
+    });
+}
+
+VerificationLabel.prototype.showCodeLabel = function() {
+    var oThis = this;
+
+    if (!this.jLabelCode.is(':visible')) {
+        this.jLabelCode.css('display', 'flex')
+            .hide()
+            .slideDown('fast', function() { oThis.jInfo.slideDown(); });
+    }
+}
+
+VerificationLabel.prototype.onGetCode = function() {
+    var oThis = this;
+    
+    this.bCodeLoading = true;
+    this.setValue(this.getValue());
+    this.showCurrentValue();
+
+    $.ajax({
+        url: g_sApiURL,
+        type: 'GET',
+        data: {
+            operating_mode: g_sOperatingMode,
+            action: 'send_code',
+            type: oThis.sType,
+            target: oThis.getValue()
+        },
+        dataType: 'JSON',
+        cache: 'false',
+        beforeSend: function() {
+            oThis.jWarning.slideUp('fast');
+            oThis.jCodeInput.val('');
+        },
+        success: function(oRes) {
+            if (oRes.error == false) {
+                oThis.jCodeInput.attr('maxlength', oRes.data.length);
+                if (oThis.oCodeTimer == undefined) {
+                    oThis.iCodeTick = g_iCodeDelay;
+                    oThis.jInfo.html('Код можно будет запросить повторно через <span wt-role="code_tick">' + oThis.iCodeTick + '</span> секунд.');
+                    oThis.jInfo.show();
+            
+                    var jCodeTick = oThis.jInfo.find('[wt-role="code_tick"]');
+                    oThis.oCodeTimer = setInterval(function() {
+                        if (oThis.iCodeTick > 1) {
+                            oThis.iCodeTick--;
+                            jCodeTick.html(oThis.iCodeTick);
+                        } else {
+                            clearInterval(oThis.oCodeTimer);
+                            oThis.oCodeTimer = undefined;
+                            oThis.onAllowRepeatCode();
+                        }
+                    }, 1000);
+                    oThis.bAllowRepeatCode = false;
+                }
+                
+                oThis.showCodeLabel();
+                oThis.jSendCode.attr('disabled', 'disabled');
+            } else {
+                console.error(oRes.error_message);
+                oThis.jWarning.html('При обработке запроса произошла ошибка, попробуйте ещё раз.');
+                oThis.jWarning.slideDown('fast');
+            }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            oThis.jWarning.html('При обработке запроса произошла ошибка, попробуйте ещё раз.');
+            oThis.jWarning.slideDown('fast');
+        },
+        complete: function() {
+            oThis.bCodeLoading = false;
+        }
+    });
+}
+
+VerificationLabel.prototype.onMatchCode = function() {
+    var oThis = this;
+    this.bCodeMatching = true;
+    $.ajax({
+        url: g_sApiURL,
+        type: 'GET',
+        dataType: 'JSON',
+        cache: false,
+        data: {
+            operating_mode: g_sOperatingMode,
+            action: 'match_code',
+            type: oThis.sType,
+            code: oThis.jCodeInput.val()
+        },
+        beforeSend: function() {
+            oThis.jControls.find('.ws-btn').attr('disabled', 'disabled');
+            oThis.jCodeInput.attr('disabled', 'disabled');
+            oThis.jWarning.slideUp('fast');
+        },
+        success: function(oRes) {
+            if (oRes.error == false) {
+                if (oRes.data.codes_match == true) {
+                    oThis.jDoneTitle.html(oThis.sType == 'phone' ? 'Номер подтверждён' : 'E-Mail подтверждён');
+                    oThis.jDoneContainer
+                        .css('display', 'flex')
+                        .hide()
+                        .fadeIn('fast');
+                    oThis.bIsDone = true;
+
+                    if (g_oVerificationForm.isDone()) {
+                        setTimeout(function() {
+                            parent.$('[cx-role="modal-frame"]').trigger('close_modal');
+                        }, 2000);
+                    }
+                } else {
+                    oThis.jWarning.html('Неверно введён проверочный код, попробуйте ещё раз.');
+                    oThis.jWarning.slideDown('fast');
+                    oThis.jCodeInput.removeAttr('disabled');
+                }
+            } else {
+               console.dir(oRes)
+                console.log(oRes.error_message);
+                oThis.jWarning.html('При обработке запроса произошла ошибка, попробуйте ещё раз.');
+                oThis.jWarning.slideDown('fast');
+            }
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            oThis.jWarning.html('При обработке запроса произошла ошибка, попробуйте ещё раз.');
+            oThis.jWarning.slideDown('fast');
+        },
+        complete: function() {
+            oThis.bCodeMatching = false;
+            if (oThis.bAllowRepeatCode)
+                oThis.jControls.find('.ws-btn').removeAttr('disabled');
+            else
+                oThis.jControls.find('.ws-btn:not([wt-role="send_code"])').removeAttr('disabled');
+        }
+    });
+}
+
+VerificationLabel.prototype.onAllowRepeatCode = function() {
+    var oThis = this;
+
+    this.bAllowRepeatCode = true;
+    this.jInfo.slideUp('fast', function() { oThis.jInfo.html(''); });
+
+    this.jSendCode.removeAttr('disabled');
+}
+
+var getUrlParameter = function(sParam) {
+    var sPageURL = window.location.search.substring(1),
+        sURLVariables = sPageURL.split('&'),
+        sParameterName,
+        i;
+
+    for (i = 0; i < sURLVariables.length; i++) {
+        sParameterName = sURLVariables[i].split('=');
+
+        if (sParameterName[0] === sParam) {
+            return sParameterName[1] === undefined ? true : decodeURIComponent(sParameterName[1]);
+        }
+    }
+};
+
+var g_sOperatingMode = getUrlParameter('operating_mode');
+var g_sApiURL = '/personal_info_verification_api_CUSTOM.html';
+var g_oVerificationForm;
+var g_iCodeDelay = getUrlParameter('code_delay');
+
+$(document).ready(function() {
+    
+    g_oVerificationForm = new VerificationForm({
+        jContainer: $('form[name="verification"]'),
+        oPhone: {
+            bVerify: getUrlParameter('required_phone') == 'true' ? true : false,
+            jContainer: $('[wt-container="phone_number"]'),
+            sValue: sStartPhoneValue,
+            sInputMask: '+9{1,3} (999) 999-9999',
+            sType: 'phone'
+        },
+        oEmail: {
+            bVerify: getUrlParameter('required_email') == 'true'  ? true : false,
+            jContainer: $('[wt-container="email"]'),
+            sType: 'email',
+            sInputMask: '',
+            sValue: sStartEmailValue
+        }
+    });
+});
+</script>
