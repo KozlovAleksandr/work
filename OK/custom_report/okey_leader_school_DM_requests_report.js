@@ -2,14 +2,14 @@ _RES = [];
 _request_type_id = 6834376751502417701; // Записать в Школу лидерства -  Директора магазина
 _last_clmn_num = 14;
 
-_closeDateBeg = { PARAM2 } ? "and $elem/close_date >= date('" + StrDate({ PARAM2 }, false) + "')" : "";
-_closeDateFin = { PARAM3 } ? "and $elem/close_date <= date('" + StrDate({ PARAM3 }, false) + "')" : "";
+_closeDateBeg = {PARAM2} ? "and $elem/close_date >= date('" + StrDate({PARAM2}, false) + "')" : "";
+_closeDateFin = {PARAM3} ? "and $elem/close_date <= date('" + StrDate({PARAM3}, false) + "')" : "";
 
 _requests = XQuery("for $elem in requests where $elem/request_type_id=" + _request_type_id + " and $elem/status_id='close' " + _closeDateBeg + " " + _closeDateFin + " return $elem");
 
 _events = [];
 
-_searchParam = OptInt({ PARAM1 });
+_searchParam = OptInt({PARAM1});
 
 if (_searchParam != undefined) {
   _typical_program = ArrayOptFirstElem(XQuery("for $elem in typical_development_programs where $elem/id=" + _searchParam + "  return $elem"));

@@ -1,3 +1,4 @@
+
 _RES = [];
 _request_type_id = 6834376740098549468; // Записать в Школу лидерства - Заместитель Директора магазина
 _last_clmn_num = 11;
@@ -22,27 +23,24 @@ if (_searchParam != undefined) {
 
     for (j = 0; j < ArrayCount(_tasks); j++) {
       _task = _tasks[j];
-      _task_number = OptInt(_task.custom_elems.ObtainChildByKey("f_gepj").value); // !
+      _last_clmn_num++
 
-      if (_task_number != undefined) {
-        _position_number = _last_clmn_num + _task_number; // !
-        _cc = columns[_position_number];
-        _cc.flag_formula = true;
-        _cc.column_title = "" + _task.name;
-        _cc.column_value = "ListElem.entry_" + _position_number + "";
-        _cc.datatype = "string";
+      _cc = columns[_last_clmn_num];
+      _cc.flag_formula = true;
+      _cc.column_title = "" + _task.name;
+      _cc.column_value = "ListElem.entry_" + _last_clmn_num + "";
+      _cc.datatype = "string";
 
-        _event_obj = {};
-        if (_task.type == 'education_method') {
-          _event_obj.object_type = 'event';
-          _event_obj.object_id = _task.name;
-        } else {
-          _event_obj.object_type = _task.object_type;
-          _event_obj.object_id = _task.object_id;
-        }
-        _event_obj.entry_name = "entry_" + _position_number + "";
-        _events.push(_event_obj);
+      _event_obj = {};
+      if (_task.type == 'education_method') {
+        _event_obj.object_type = 'event';
+        _event_obj.object_id = _task.name;
+      } else {
+        _event_obj.object_type = _task.object_type;
+        _event_obj.object_id = _task.object_id;
       }
+      _event_obj.entry_name = "entry_" + _last_clmn_num + "";
+      _events.push(_event_obj);
     }
   }
 } else {
@@ -50,29 +48,26 @@ if (_searchParam != undefined) {
 }
 
 _custom_fields = [
-  { title: 'Опыт работы с категориями', elem: 'f_wp8v' },
-  { title: 'Готовность к переезду (указать города)', elem: 'f_td9m' },
-  { title: 'Является ли наставником', elem: 'f_8wc8' }
+  { title: 'Опыт работы с категориями', field: 'experience_category', elem: 'f_wp8v' },
+  { title: 'Готовность к переезду (указать города)', field: 'moving', elem: 'f_td9m' },
+  { title: 'Является ли наставником', field: 'mentor', elem: 'f_8wc8' }
 ];
 
 for (q = 0; q < ArrayCount(_custom_fields); q++) {
   _field = _custom_fields[q];
-  _field_number = _position_number + 1;
+  _last_clmn_num++;
 
-  if (_field_number != undefined) {
-    _cc = columns[_field_number];
+    _cc = columns[_last_clmn_num];
     _cc.flag_formula = true;
     _cc.column_title = "" + _field.title;
-    _cc.column_value = "ListElem.entry_" + _field_number + "";
+    _cc.column_value = "ListElem.entry_" + _last_clmn_num + "";
     _cc.datatype = "string";
 
     _custom_obj = {};
     _custom_obj.object_type = 'custom';
     _custom_obj.object_id = _field.elem;
-    _custom_obj.entry_name = "entry_" + _field_number + "";
+    _custom_obj.entry_name = "entry_" + _last_clmn_num + "";
     _events.push(_custom_obj);
-    _position_number++;
-  }
 }
 
 _uniquePerson = [];
