@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./style.css">
+    <title>Document</title>
+</head>
+<body>
+    <div class="container">
+        <main>
+        <aside>
+            <a class="aside__button personal">
+                <svg class="photo_man small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>Avatar-1</title><g id="Man"><path d="M45,8v9.27A2,2,0,0,0,44,17H41V13s-2,0-5.4-3c0,0-3.6,4-12.6,4v3H20a2,2,0,0,0-1,.27V8a7,7,0,0,1,7-7H38a3,3,0,0,1,3,3A4,4,0,0,1,45,8Z" style="fill:#494a59"/><path d="M45,16.27A2,2,0,0,0,44,16H40v5a9.356,9.356,0,0,1-.22,2H44a2.006,2.006,0,0,0,2-2V18A2,2,0,0,0,45,16.27Z" style="fill:#eac2b9"/><path d="M24,21V16H20a2,2,0,0,0-2,2v3a2.006,2.006,0,0,0,2,2h4.23A8.759,8.759,0,0,1,24,21Z" style="fill:#eac2b9"/><path d="M51.28,39.29C42.434,35.107,45.464,36.541,38,33l-4,5H30l-4-5c-7.463,3.541-4.435,2.107-13.28,6.29A10.009,10.009,0,0,0,7,48.33V62.25a.75.75,0,0,0,.75.75h48.5a.75.75,0,0,0,.75-.75V48.33A10.009,10.009,0,0,0,51.28,39.29Z" style="fill:#e6ecff"/><polygon points="38 63 26 63 29 47 35 47 38 63" style="fill:#494a59"/><path d="M38,26.7V34l-4,5H30l-4-5V26.7a8.976,8.976,0,0,0,12,0Z" style="fill:#eac2b9"/><path d="M48.75,51V63h-1.5V51a.75.75,0,0,1,1.5,0Z" style="fill:#d0dbf7"/><path d="M16.75,51V63h-1.5V51a.75.75,0,0,1,1.5,0Z" style="fill:#d0dbf7"/><path d="M35.6,9S32,13,23,13v8a9,9,0,0,0,18,0V12S39,12,35.6,9Z" style="fill:#ffddd4"/><polygon points="30 38 26.12 41.24 24 43 19.93 35.88 26 33 30 38" style="fill:#d0dbf7"/><polygon points="44.07 35.88 40 43 37.88 41.24 34 38 38 33 44.07 35.88" style="fill:#d0dbf7"/><polygon points="37.88 41.24 35 47 29 47 26.12 41.24 30 38 34 38 37.88 41.24" style="fill:#343544"/></g></svg>
+                <svg class="photo_woman small" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>Avatar-10</title><g id="Girl-2" data-name="Girl"><path d="M11,56v6.25a.75.75,0,0,0,.75.75H20V56Z" style="fill:#ffddd4"/><path d="M44,56v7h8.25a.75.75,0,0,0,.75-.75V56Z" style="fill:#ffddd4"/><path d="M12.54,44.55a5.524,5.524,0,0,1-1.43-4.76c.95-4.37,4.95-3.88,2.43-9.4A19.248,19.248,0,0,1,12.583,21c.465-3.255,2.821-9.009,5.258-13.627A11.979,11.979,0,0,1,28.443,1H36a4,4,0,0,1,4,4h0a8.945,8.945,0,0,1,8.24,5.4,50.119,50.119,0,0,1,3.2,11.1,16.707,16.707,0,0,1-.978,8.89c-2.52,5.52,1.48,5.03,2.43,9.4a5.524,5.524,0,0,1-1.43,4.76Z" style="fill:#494a59"/><path d="M38,31.7V40l-6,5-6-5V31.7a8.976,8.976,0,0,0,12,0Z" style="fill:#eac2b9"/><path d="M51.28,44.47l-7.65-3.15L38,39l-6,5-6-5-5.63,2.32-7.65,3.15A6.01,6.01,0,0,0,9,50.02v6.23a.75.75,0,0,0,.75.75H19v6H45V57h9.25a.75.75,0,0,0,.75-.75V50.02A6.01,6.01,0,0,0,51.28,44.47Z" style="fill:#ffb64d"/><path d="M46.5,52v5H45V52a.75.75,0,0,1,1.5,0Z" style="fill:#ea972a"/><path d="M43,22H41l-.226,6H43a2,2,0,0,0,2-2V24A2,2,0,0,0,43,22Z" style="fill:#eac2b9"/><path d="M23,22H21a2,2,0,0,0-2,2v2a2,2,0,0,0,2,2h2.225Z" style="fill:#eac2b9"/><path d="M19,52v5H17.5V52A.75.75,0,0,1,19,52Z" style="fill:#ea972a"/><polygon points="32 44 27 48 20.37 41.32 26 39 32 44" style="fill:#ea972a"/><polygon points="43.63 41.32 37 48 32 44 38 39 43.63 41.32" style="fill:#ea972a"/><path d="M23,19a25.056,25.056,0,0,0,13.925-4.928l.034.093A4.905,4.905,0,0,0,41,17.347h0V26a9,9,0,0,1-9,9h0a9,9,0,0,1-9-9Z" style="fill:#ffddd4"/></g></svg>
+                <img src="" alt="" class="photo small avatar" class="avatar">
+                Личный кабинет
+            </a>
+            <a href="https://585zolotoy-t.websoft.ru/view_doc.html?mode=event_calendar" class="aside__button calendar">
+                <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+                width="63.000000pt" height="63.000000pt" fill="#000000" viewBox="0 0 63.000000 63.000000"
+                preserveAspectRatio="xMidYMid meet">
+                <g transform="translate(0.000000,63.000000) scale(0.100000,-0.100000)"
+                stroke="none">
+                <path d="M132 598 c-7 -7 -12 -20 -12 -30 0 -14 -8 -18 -34 -18 -64 0 -66 -7
+                -66 -245 0 -181 2 -216 16 -229 13 -13 42 -16 165 -16 201 0 198 19 -3 22
+                l-153 3 -3 163 -2 162 275 0 275 0 0 -85 c0 -50 4 -85 10 -85 6 0 10 53 10
+                139 0 156 -6 171 -65 171 -27 0 -34 4 -37 21 -7 49 -69 49 -76 0 -3 -17 -10
+                -21 -43 -21 -34 0 -39 3 -39 24 0 26 -23 40 -51 31 -12 -4 -19 -16 -19 -31 0
+                -21 -4 -24 -40 -24 -32 0 -40 4 -40 18 0 22 -19 42 -40 42 -9 0 -21 -5 -28
+                -12z m43 -59 c0 -32 -4 -44 -15 -44 -16 0 -26 54 -16 82 12 30 31 6 31 -38z
+                m153 4 c-2 -27 -7 -48 -13 -48 -5 0 -11 21 -13 48 -3 38 0 47 13 47 13 0 16
+                -9 13 -47z m157 -4 c0 -32 -4 -44 -15 -44 -16 0 -26 54 -16 82 12 30 31 6 31
+                -38z m-365 -28 c0 -46 65 -51 76 -5 5 20 12 24 45 24 31 0 39 -4 39 -19 0 -10
+                7 -24 16 -32 20 -16 48 -1 52 30 3 17 10 21 42 21 32 0 39 -4 44 -24 12 -47
+                76 -41 76 6 0 16 6 19 37 16 38 -3 38 -3 41 -50 l3 -48 -275 0 -276 0 0 43 c0
+                52 4 57 47 57 26 0 33 -4 33 -19z"/>
+                <path d="M100 330 c0 -30 2 -31 38 -28 32 3 37 6 37 28 0 22 -5 25 -37 28 -36
+                3 -38 2 -38 -28z m58 -2 c-7 -19 -38 -22 -38 -4 0 10 9 16 21 16 12 0 19 -5
+                17 -12z"/>
+                <path d="M220 330 c0 -30 2 -31 38 -28 32 3 37 6 37 28 0 22 -5 25 -37 28 -36
+                3 -38 2 -38 -28z m58 -2 c-7 -19 -38 -22 -38 -4 0 10 9 16 21 16 12 0 19 -5
+                17 -12z"/>
+                <path d="M334 345 c-11 -28 4 -45 41 -45 32 0 35 2 35 30 0 28 -3 30 -35 30
+                -22 0 -38 -6 -41 -15z m56 -21 c0 -9 -7 -14 -17 -12 -25 5 -28 28 -4 28 12 0
+                21 -6 21 -16z"/>
+                <path d="M454 345 c-11 -28 4 -45 41 -45 32 0 35 2 35 30 0 28 -3 30 -35 30
+                -22 0 -38 -6 -41 -15z m56 -21 c0 -9 -7 -14 -17 -12 -25 5 -28 28 -4 28 12 0
+                21 -6 21 -16z"/>
+                <path d="M107 274 c-4 -4 -7 -20 -7 -36 0 -25 3 -28 35 -28 39 0 55 21 38 49
+                -11 17 -54 27 -66 15z m51 -31 c2 -8 -5 -13 -17 -13 -12 0 -21 6 -21 16 0 18
+                31 15 38 -3z"/>
+                <path d="M227 274 c-4 -4 -7 -20 -7 -36 0 -25 3 -28 35 -28 39 0 55 21 38 49
+                -11 17 -54 27 -66 15z m51 -31 c2 -8 -5 -13 -17 -13 -12 0 -21 6 -21 16 0 18
+                31 15 38 -3z"/>
+                <path d="M340 265 c-14 -17 -10 -47 8 -53 8 -2 11 5 10 20 -2 17 3 24 20 26
+                12 2 22 8 22 13 0 15 -46 10 -60 -6z"/>
+                <path d="M446 270 c-41 -13 -75 -48 -87 -92 -27 -103 86 -192 182 -143 92 48
+                89 183 -5 226 -46 21 -49 21 -90 9z m79 -24 c38 -16 65 -60 65 -107 0 -43 -56
+                -99 -99 -99 -48 0 -91 27 -107 67 -19 44 -11 83 24 115 43 41 65 45 117 24z"/>
+                <path d="M498 153 c-37 -36 -38 -37 -58 -18 -31 28 -38 8 -7 -22 l27 -27 45
+                44 c43 42 54 60 37 60 -4 0 -24 -17 -44 -37z"/>
+                <path d="M107 184 c-4 -4 -7 -20 -7 -36 0 -28 2 -29 38 -26 34 3 37 6 37 33 0
+                26 -4 30 -30 33 -17 2 -34 0 -38 -4z m53 -29 c0 -8 -9 -15 -20 -15 -11 0 -20
+                7 -20 15 0 8 9 15 20 15 11 0 20 -7 20 -15z"/>
+                <path d="M227 184 c-4 -4 -7 -20 -7 -36 0 -25 3 -28 35 -28 39 0 55 21 38 49
+                -11 17 -54 27 -66 15z m51 -31 c2 -8 -5 -13 -17 -13 -12 0 -21 6 -21 16 0 18
+                31 15 38 -3z"/>
+                </g>
+                </svg>
+                Календарь мероприятий
+            </a>
+            <a href="https://585zolotoy-t.websoft.ru/boss_panel?mode=boss_panel&doc_id=6818160047878188517" class="aside__button collaborators">
+                <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+                    width="63.000000pt" height="63.000000pt" fill="#000000" viewBox="0 0 63.000000 63.000000"
+                    preserveAspectRatio="xMidYMid meet">
+                    <g transform="translate(0.000000,63.000000) scale(0.100000,-0.100000)"
+                    stroke="none">
+                    <path d="M253 540 c-43 -18 -56 -53 -48 -135 4 -50 13 -82 26 -99 10 -13 19
+                    -31 19 -40 0 -17 -31 -40 -70 -51 -23 -7 -24 -6 -9 9 25 26 8 124 -26 154 -29
+                    25 -43 27 -79 11 -28 -13 -42 -44 -50 -111 -4 -38 -2 -49 12 -57 16 -9 15 -11
+                    -5 -26 -18 -13 -23 -26 -23 -61 0 -24 5 -44 10 -44 6 0 10 20 10 44 0 36 4 46
+                    20 51 10 3 28 2 38 -4 11 -6 24 -6 33 0 25 16 29 10 29 -41 0 -27 5 -50 10
+                    -50 6 0 10 20 10 44 0 47 10 61 51 71 21 5 30 2 42 -15 11 -16 21 -20 36 -15
+                    18 5 20 1 24 -42 l3 -48 2 48 c2 44 4 48 23 42 15 -5 25 -1 36 15 12 17 21 20
+                    42 15 41 -10 51 -24 51 -71 0 -25 5 -44 11 -44 7 0 10 20 7 55 -2 34 1 54 7
+                    52 6 -2 11 -27 13 -55 4 -63 22 -70 22 -8 0 54 19 74 55 58 21 -10 25 -18 25
+                    -57 0 -25 5 -45 11 -45 6 0 9 20 7 52 -3 52 -10 62 -63 81 -6 2 -2 13 7 23 10
+                    12 20 46 24 87 l7 67 -57 0 c-97 0 -125 -50 -80 -144 19 -40 5 -51 -39 -33
+                    -46 20 -54 48 -27 85 18 25 22 44 23 133 l2 104 -75 2 c-41 1 -85 -2 -97 -7z
+                    m154 -105 c-7 -109 -15 -127 -56 -145 -70 -29 -116 12 -126 110 -11 112 3 128
+                    119 129 l69 1 -6 -95z m-267 -75 c11 -11 20 -27 20 -35 0 -14 -3 -14 -30 0
+                    -36 19 -54 19 -69 2 -15 -19 -3 -28 19 -15 14 9 24 8 44 -5 31 -21 32 -28 6
+                    -52 -38 -34 -90 7 -90 71 0 21 37 54 60 54 11 0 29 -9 40 -20z m436 -30 c-9
+                    -69 -14 -79 -43 -86 -34 -9 -59 18 -66 69 -7 55 5 67 66 67 l50 0 -7 -50z
+                    m-216 -72 c0 -18 -43 -30 -66 -19 -37 16 -29 26 21 26 25 0 45 -3 45 -7z
+                    m-304 -25 c-7 -7 -26 7 -26 19 0 6 6 6 15 -2 9 -7 13 -15 11 -17z m109 7 c-3
+                    -5 -11 -10 -16 -10 -6 0 -7 5 -4 10 3 6 11 10 16 10 6 0 7 -4 4 -10z m119 -23
+                    c15 -24 -2 -34 -19 -11 -8 10 -15 23 -15 27 0 13 22 3 34 -16z m96 17 c0 -13
+                    -21 -44 -30 -44 -14 0 -12 24 2 38 13 13 28 16 28 6z m-262 -26 c-3 -7 -11
+                    -13 -18 -13 -7 0 -15 6 -17 13 -3 7 4 12 17 12 13 0 20 -5 18 -12z m414 0 c-9
+                    -9 -15 -9 -24 0 -9 9 -7 12 12 12 19 0 21 -3 12 -12z"/>
+                    <path d="M247 453 c-4 -3 -7 -16 -7 -27 1 -20 1 -20 15 -2 11 14 23 17 57 14
+                    24 -3 51 -8 61 -12 10 -5 17 -4 17 3 0 6 -12 16 -26 21 -29 11 -107 13 -117 3z"/>
+                    <path d="M490 342 c0 -5 15 -12 33 -15 54 -8 53 8 -1 19 -19 4 -32 2 -32 -4z"/>
+                    <path d="M570 125 c0 -19 5 -35 10 -35 6 0 10 16 10 35 0 19 -4 35 -10 35 -5
+                    0 -10 -16 -10 -35z"/>
+                    <path d="M40 120 c0 -16 5 -30 10 -30 6 0 10 14 10 30 0 17 -4 30 -10 30 -5 0
+                    -10 -13 -10 -30z"/>
+                    <path d="M200 115 c0 -14 5 -25 10 -25 6 0 10 11 10 25 0 14 -4 25 -10 25 -5
+                    0 -10 -11 -10 -25z"/>
+                    <path d="M410 115 c0 -14 5 -25 10 -25 6 0 10 11 10 25 0 14 -4 25 -10 25 -5
+                    0 -10 -11 -10 -25z"/>
+                    </g>
+                </svg>
+                Мои сотрудники
+            </a>
+            <a href="https://585zolotoy-t.websoft.ru/boss_panel?mode=requests" class="aside__button">
+                <svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+                    width="63.000000pt" height="63.000000pt" fill="#000000" viewBox="0 0 63.000000 63.000000"
+                    preserveAspectRatio="xMidYMid meet">
+                    <g transform="translate(0.000000,63.000000) scale(0.100000,-0.100000)"
+                        stroke="none">
+                        <path d="M120 611 c0 -15 -8 -21 -32 -23 l-33 -3 0 -290 0 -290 228 -3 227 -2
+                        0 29 c0 26 4 30 33 33 l32 3 3 205 2 204 -77 78 -78 78 -152 0 c-145 0 -153
+                        -1 -153 -19z m290 -76 l0 -75 75 0 75 0 -2 -187 -3 -188 -207 -3 -208 -2 0
+                        265 0 265 135 0 135 0 0 -75z m80 0 l54 -55 -57 0 -57 0 0 55 c0 30 1 55 3 55
+                        1 0 27 -25 57 -55z m-372 -223 l2 -252 185 0 c178 0 185 -1 185 -20 0 -19 -7
+                        -20 -210 -20 l-210 0 0 268 c0 148 3 272 7 276 4 4 14 5 23 4 13 -3 15 -37 18
+                        -256z"/>
+                        <path d="M185 531 c-3 -2 -5 -22 -5 -43 0 -38 0 -38 40 -38 40 0 40 0 40 39 0
+                        37 -2 39 -35 43 -20 2 -38 2 -40 -1z m55 -41 c0 -13 -7 -20 -20 -20 -13 0 -20
+                        7 -20 20 0 13 7 20 20 20 13 0 20 -7 20 -20z"/>
+                        <path d="M180 420 c0 -5 9 -10 20 -10 11 0 20 5 20 10 0 6 -9 10 -20 10 -11 0
+                        -20 -4 -20 -10z"/>
+                        <path d="M245 420 c-4 -6 42 -10 129 -10 84 0 136 4 136 10 0 6 -50 10 -129
+                        10 -76 0 -132 -4 -136 -10z"/>
+                        <path d="M185 360 c-3 -5 3 -10 15 -10 12 0 18 5 15 10 -3 6 -10 10 -15 10 -5
+                        0 -12 -4 -15 -10z"/>
+                        <path d="M245 360 c-4 -6 42 -10 129 -10 84 0 136 4 136 10 0 6 -50 10 -129
+                        10 -76 0 -132 -4 -136 -10z"/>
+                        <path d="M188 288 c9 -9 15 -9 24 0 9 9 7 12 -12 12 -19 0 -21 -3 -12 -12z"/>
+                        <path d="M245 290 c4 -6 60 -10 136 -10 79 0 129 4 129 10 0 6 -52 10 -136 10
+                        -87 0 -133 -4 -129 -10z"/>
+                        <path d="M180 230 c0 -5 9 -10 20 -10 11 0 20 5 20 10 0 6 -9 10 -20 10 -11 0
+                        -20 -4 -20 -10z"/>
+                        <path d="M245 230 c4 -6 60 -10 136 -10 79 0 129 4 129 10 0 6 -52 10 -136 10
+                        -87 0 -133 -4 -129 -10z"/>
+                        <path d="M180 170 c0 -5 9 -10 20 -10 11 0 20 5 20 10 0 6 -9 10 -20 10 -11 0
+                        -20 -4 -20 -10z"/>
+                        <path d="M245 170 c-4 -6 42 -10 129 -10 84 0 136 4 136 10 0 6 -50 10 -129
+                        10 -76 0 -132 -4 -136 -10z"/>
+                    </g>
+               </svg>
+                Документы
+            </a>
+        </aside>
+        <div class="table-box">
+            <div class="top-block">
+                <div class="top-block__left">
+                    <div class="top-block__left-avatar">
+                        <svg class="photo_man big" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>Avatar-1</title><g id="Man"><path d="M45,8v9.27A2,2,0,0,0,44,17H41V13s-2,0-5.4-3c0,0-3.6,4-12.6,4v3H20a2,2,0,0,0-1,.27V8a7,7,0,0,1,7-7H38a3,3,0,0,1,3,3A4,4,0,0,1,45,8Z" style="fill:#494a59"/><path d="M45,16.27A2,2,0,0,0,44,16H40v5a9.356,9.356,0,0,1-.22,2H44a2.006,2.006,0,0,0,2-2V18A2,2,0,0,0,45,16.27Z" style="fill:#eac2b9"/><path d="M24,21V16H20a2,2,0,0,0-2,2v3a2.006,2.006,0,0,0,2,2h4.23A8.759,8.759,0,0,1,24,21Z" style="fill:#eac2b9"/><path d="M51.28,39.29C42.434,35.107,45.464,36.541,38,33l-4,5H30l-4-5c-7.463,3.541-4.435,2.107-13.28,6.29A10.009,10.009,0,0,0,7,48.33V62.25a.75.75,0,0,0,.75.75h48.5a.75.75,0,0,0,.75-.75V48.33A10.009,10.009,0,0,0,51.28,39.29Z" style="fill:#e6ecff"/><polygon points="38 63 26 63 29 47 35 47 38 63" style="fill:#494a59"/><path d="M38,26.7V34l-4,5H30l-4-5V26.7a8.976,8.976,0,0,0,12,0Z" style="fill:#eac2b9"/><path d="M48.75,51V63h-1.5V51a.75.75,0,0,1,1.5,0Z" style="fill:#d0dbf7"/><path d="M16.75,51V63h-1.5V51a.75.75,0,0,1,1.5,0Z" style="fill:#d0dbf7"/><path d="M35.6,9S32,13,23,13v8a9,9,0,0,0,18,0V12S39,12,35.6,9Z" style="fill:#ffddd4"/><polygon points="30 38 26.12 41.24 24 43 19.93 35.88 26 33 30 38" style="fill:#d0dbf7"/><polygon points="44.07 35.88 40 43 37.88 41.24 34 38 38 33 44.07 35.88" style="fill:#d0dbf7"/><polygon points="37.88 41.24 35 47 29 47 26.12 41.24 30 38 34 38 37.88 41.24" style="fill:#343544"/></g></svg>
+                        <svg class="photo_woman big" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><title>Avatar-10</title><g id="Girl-2" data-name="Girl"><path d="M11,56v6.25a.75.75,0,0,0,.75.75H20V56Z" style="fill:#ffddd4"/><path d="M44,56v7h8.25a.75.75,0,0,0,.75-.75V56Z" style="fill:#ffddd4"/><path d="M12.54,44.55a5.524,5.524,0,0,1-1.43-4.76c.95-4.37,4.95-3.88,2.43-9.4A19.248,19.248,0,0,1,12.583,21c.465-3.255,2.821-9.009,5.258-13.627A11.979,11.979,0,0,1,28.443,1H36a4,4,0,0,1,4,4h0a8.945,8.945,0,0,1,8.24,5.4,50.119,50.119,0,0,1,3.2,11.1,16.707,16.707,0,0,1-.978,8.89c-2.52,5.52,1.48,5.03,2.43,9.4a5.524,5.524,0,0,1-1.43,4.76Z" style="fill:#494a59"/><path d="M38,31.7V40l-6,5-6-5V31.7a8.976,8.976,0,0,0,12,0Z" style="fill:#eac2b9"/><path d="M51.28,44.47l-7.65-3.15L38,39l-6,5-6-5-5.63,2.32-7.65,3.15A6.01,6.01,0,0,0,9,50.02v6.23a.75.75,0,0,0,.75.75H19v6H45V57h9.25a.75.75,0,0,0,.75-.75V50.02A6.01,6.01,0,0,0,51.28,44.47Z" style="fill:#ffb64d"/><path d="M46.5,52v5H45V52a.75.75,0,0,1,1.5,0Z" style="fill:#ea972a"/><path d="M43,22H41l-.226,6H43a2,2,0,0,0,2-2V24A2,2,0,0,0,43,22Z" style="fill:#eac2b9"/><path d="M23,22H21a2,2,0,0,0-2,2v2a2,2,0,0,0,2,2h2.225Z" style="fill:#eac2b9"/><path d="M19,52v5H17.5V52A.75.75,0,0,1,19,52Z" style="fill:#ea972a"/><polygon points="32 44 27 48 20.37 41.32 26 39 32 44" style="fill:#ea972a"/><polygon points="43.63 41.32 37 48 32 44 38 39 43.63 41.32" style="fill:#ea972a"/><path d="M23,19a25.056,25.056,0,0,0,13.925-4.928l.034.093A4.905,4.905,0,0,0,41,17.347h0V26a9,9,0,0,1-9,9h0a9,9,0,0,1-9-9Z" style="fill:#ffddd4"/></g></svg>
+                        <img src="" alt="" class="top-block__left photo big avatar">
+                        <div class="logo">
+                            <img src="/download_file.html?file_id=7182924631849980694" alt="enrollee">
+                        </div>
+                    </div>
+                    <div class="top-block__left-name">Антон Иванович</div>
+                    <div class="top-block__left-position">Продавец-консультант</div>
+                    <div class="top-block__left-exp">Стаж: <span class="experience"></span></div>
+                    <div class="top-block__left-skills">
+                        <div class="skills-item">
+                            <div class="logo">
+                                <img src="/download_file.html?file_id=7182924631849980694" alt="enrollee">
+                            </div>
+                            <span>Абитуриент</span>
+                        </div>
+                        <div class="skills-item">
+                            <div class="logo">
+                                <img src="/download_file.html?file_id=7182926641856464942" alt="student">
+                            </div>
+                            <span>Студент</span>
+                        </div>
+                        <div class="skills-item">
+                            <div class="logo">
+                                <img src="/download_file.html?file_id=7182927401810046328" alt="assistant">
+                            </div>
+                            <span>Доцент</span>
+                        </div>
+                        <div class="skills-item">
+                            <div class="logo">
+                                <img src="/download_file.html?file_id=7182927658624723758" alt="professor">
+                            </div>
+                            <span>Профессор</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="top-block__right">
+                    <div class="top-block__right-top">
+                        <p class="block-title">План на день</p>
+                        <div class="top-block__right-top-left">
+                            <div >
+                                <span>10:00 - тренинг</span>
+                                <br>
+                                <span>"Тарифы ломбарда</span>
+                            </div>
+                            <button class="top-block__right-top__button button">Посмотреть</button>
+                        </div>
+                    </div>
+                    <div class="top-block__right-bottom">
+                        <p class="block-title">Мои сокровища</p>
+                        <div class="top-block__right-awards">
+                            <div class="awards">
+                                <div class="text">бриллиантов</div>
+                                <div class="number">0</div>
+                            </div>
+                            <div class="awards">
+                                <div class="text">изумрудов</div>
+                                <div class="number">60</div>
+                            </div>
+                            <div class="awards">
+                                <div class="text">золотых</div>
+                                <div class="number">50</div>
+                            </div>
+                        </div>
+                        <button class="top-block__right-bottom__button button">Обменять</button>
+                    </div>
+                </div>   
+            </div>
+            <div class="results">
+                <p class="block-title">Мои результаты</p>
+                <div class="results_item">
+                    <span class="results_number">23</span>
+                    <span class="results_text">Всего задач</span>
+                </div>
+                <div class="results_item">
+                    <span class="results_number">17</span>
+                    <span class="results_text">Успешно завершено</span>
+                </div>
+                <div class="results_item">
+                    <span class="results_number">6</span>
+                    <span class="results_text">Осталось завершить</span>
+                </div>
+                <div class="results_item">
+                    <span class="results_number">27</span>
+                    <span class="results_text">Дней до конца стажировки</span>
+                </div>
+            </div>
+            <div class="my-tasks blocks">
+                <p class="block-title">Мои задачи</p>
+                <div class="my-tasks-button-block">
+                    <button class="button current_tasks">Текущие</button>
+                    <button class="button coming_tasks">Предстоящие</button>
+                    <button class="button completed_tasks">Завершенные</button>
+                </div>
+                <div class="my-tasks-table-block">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Название</th>
+                                <th scope="col">Статус</th>
+                                <th scope="col">Дедлайн</th>
+                                <th scope="col">Преподаватели</th>
+                            </tr>
+                        </thead>
+                    </table>
+                    <div class="scroll_table">
+                        <table>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="available-courses blocks">
+                <p class="block-title">Доступные курсы</p>
+                <p class="available-courses-desc-block">Lorem ipsum dolor sit amet consectetur adipisicing elit. Repudiandae cumque amet recusandae necessitatibus similique odit illum alias fuga quibusdam ipsa quaerat pariatur, aliquid atque, ex omnis facere inventore architecto sunt distinctio, rem minus sit temporibus.</p>
+                <div class="available-courses-button-block">
+                    <button class="button">Каталог курсов</button>
+                    <button class="button">Записаться на семинар</button>
+                </div>
+            </div>
+
+            <div class="new-courses blocks">
+                <p class="block-title">Новые курсы</p>
+                <p class="new-courses-desc-block">Lorem ipsum dolor sit amet consectetur adipisicing elit. Repudiandae cumque amet recusandae necessitatibus similique odit illum alias fuga.</p>
+                <div class="new-courses-button-block">
+                    <div class="itc-slider itc-slider-1" data-autoplay="true" data-interval="7000" data-loop="true" data-slider="itc-slider">
+                        <div class="itc-slider__wrapper">
+                            <div class="itc-slider__items">
+
+                            </div>
+                        </div> 
+                        <!-- <button class="itc-slider__btn itc-slider__btn_prev"></button> -->
+                        <!-- <button class="itc-slider__btn itc-slider__btn_next"></button> -->
+                        <ol class="itc-slider__indicators itc-slider__indicators-1">
+                        </ol>
+                    </div>    
+                </div>
+            </div>
+            <div class="news blocks">
+                <p class="block-title">Новостная лента</p>
+                <div class="news__slider">
+                    <div class="itc-slider itc-slider-2" data-slider="itc-slider" data-loop="true">
+                        <div class="itc-slider__wrapper">
+                            <div class="itc-slider__items">
+                                <!-- <a class="itc-slider__item slider__item" 
+						            style='background-image: url(./src/w-ava.svg)'
+						            href="">
+                                </a>
+                                <a class="itc-slider__item slider__item" 
+                                    style='background-image: url(./src/w-ava.svg)'
+                                    href="">
+                                </a>
+                                <a class="itc-slider__item slider__item" 
+                                    style='background-image: url(./src/w-ava.svg)'
+                                    href="">
+                                </a> -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="itc-slider__btn itc-slider__btn_prev"></button>
+                <button class="itc-slider__btn itc-slider__btn_next"></button>
+                <ol class="itc-slider__indicators itc-slider__indicators-2"></ol>
+            </div>
+          </div>
+        </div>
+        
+        </main>
+    </div>
+</body>
+
+
+<script>
+    
+
+
+
+coursesSlider = class ItcSlider {
+  static #EL_WRAPPER = 'wrapper';
+  static #EL_ITEMS = 'items';
+  static #EL_ITEM = 'item';
+  static #EL_ITEM_ACTIVE = 'item_active';
+  static #EL_INDICATOR = 'indicator';
+  static #EL_INDICATOR_ACTIVE = 'indicator_active';
+  static #BTN_PREV = 'btn_prev';
+  static #BTN_NEXT = 'btn_next';
+  static #BTN_HIDE = 'btn_hide';
+  static #TRANSITION_NONE = 'transition-none';
+
+  static #instances = [];
+
+  #config;
+  #state;
+
+  constructor(el, config = {}, prefix = 'itc-slider__') {
+
+    this.#state = {
+      prefix: prefix, // префикс для классов
+      el: el, // элемент который нужно активировать как ItcSlider
+      elWrapper: el.querySelector(`.${prefix}${this.constructor.#EL_WRAPPER}`), // элемент с #CLASS_WRAPPER
+      elItems: el.querySelector(`.${prefix}${this.constructor.#EL_ITEMS}`), // элемент, в котором находятся слайды
+      elListItem: el.querySelectorAll(`.${prefix}${this.constructor.#EL_ITEM}`), // список элементов, являющиеся слайдами
+      btnPrev: el.querySelector(`.${prefix}${this.constructor.#BTN_PREV}`), // кнопка, для перехода к предыдущему слайду
+      btnNext: el.querySelector(`.${prefix}${this.constructor.#BTN_NEXT}`), // кнопка, для перехода к следующему слайду
+      btnClassHide: prefix + this.constructor.#BTN_HIDE, // класс для скрытия кнопки
+      exOrderMin: 0,
+      exOrderMax: 0,
+      exItemMin: null,
+      exItemMax: null,
+      exTranslateMin: 0,
+      exTranslateMax: 0,
+      direction: 'next', // направление смены слайдов
+      intervalId: null, // id таймера
+      isSwiping: false,
+      swipeX: 0,
+    };
+
+    this.#config = {
+      loop: true, autoplay: false, interval: 0, refresh: true, swipe: true, ...config
+    };
+
+    this.#init();
+    this.#attachEvents();
+  }
+
+
+  static getInstance(elSlider) {
+    const found = this.#instances.find(el => el.target === elSlider);
+    if (found) {
+      return found.instance;
+    }
+    return null;
+  }
+
+
+  static getOrCreateInstance(target, config = {}, prefix = 'itc-slider__') {
+    try {
+      const elSlider = typeof target === 'string' ? document.querySelector(target) : target;
+      const result = this.getInstance(elSlider);
+      if (result) {
+        return result;
+      }
+      const slider = new this(elSlider, config, prefix);
+      this.#instances.push({target: elSlider, instance: slider});
+      return slider;
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // статический метод для активирования элементов как ItcSlider на основе data-атрибутов
+  static createInstances() {
+    document.querySelectorAll('[data-slider="itc-slider"]').forEach((el) => {
+      const dataset = el.dataset;
+      const params = {};
+      Object.keys(dataset).forEach((key) => {
+        if (key === 'slider') {
+          return;
+        }
+        let value = dataset[key];
+        value = value === 'true' ? true : value;
+        value = value === 'false' ? false : value;
+        value = Number.isNaN(Number(value)) ? Number(value) : value;
+        params[key] = value;
+      });
+      this.getOrCreateInstance(el, params);
+    });
+  }
+
+  next() {
+    this.#state.direction = 'next';
+    this.#move();
+  }
+
+  prev() {
+    this.#state.direction = 'prev';
+    this.#move();
+  }
+
+  moveTo(index) {
+    this.#moveTo(index);
+  }
+
+  reset() {
+    this.#reset();
+  }
+
+  dispose() {
+    this.#detachEvents();
+    const transitionNoneClass = this.#state.prefix + this.constructor.#TRANSITION_NONE;
+    const activeClass = this.#state.prefix + this.constructor.#EL_ITEM_ACTIVE;
+    this.#autoplay('stop');
+    this.#state.elItems.classList.add(transitionNoneClass);
+    this.#state.elItems.style.transform = '';
+    this.#state.elListItem.forEach((el) => {
+      el.style.transform = '';
+      el.classList.remove(activeClass);
+    });
+    const selIndicators = `${this.#state.prefix}${this.constructor.#EL_INDICATOR_ACTIVE}`;
+    document.querySelectorAll(`.${selIndicators}`).forEach((el) => {
+      el.classList.remove(selIndicators);
+    })
+    this.#state.elItems.offsetHeight;
+    this.#state.elItems.classList.remove(transitionNoneClass);
+    const index = this.constructor.#instances.findIndex(el => el.target === this.#state.el);
+    this.constructor.#instances.splice(index, 1);
+  }
+
+  #onClick(e) {
+    const classBtnPrev = this.#state.prefix + this.constructor.#BTN_PREV;
+    const classBtnNext = this.#state.prefix + this.constructor.#BTN_NEXT;
+    this.#autoplay('stop');
+    if (e.target.closest(`.${classBtnPrev}`) || e.target.closest(`.${classBtnNext}`)) {
+      this.#state.direction = e.target.closest(`.${classBtnPrev}`) ? 'prev' : 'next';
+      this.#move();
+    } else if (e.target.dataset.slideTo) {
+      const index = parseInt(e.target.dataset.slideTo, 10);
+      this.#moveTo(index);
+    }
+    this.#config.loop ? this.#autoplay() : null;
+  }
+
+  #onMouseEnter() {
+    this.#autoplay('stop');
+  }
+
+  #onMouseLeave() {
+    this.#autoplay();
+  }
+
+  #onResize() {
+    window.requestAnimationFrame(this.#reset.bind(this));
+  }
+
+  #onSwipeStart(e) {
+    this.#autoplay('stop');
+    const event = e.type.search('touch') === 0 ? e.touches[0] : e;
+    this.#state.swipeX = event.clientX;
+    this.#state.isSwiping = true;
+  }
+
+  #onSwipeEnd(e) {
+    if (!this.#state.isSwiping) {
+      return;
+    }
+    const event = e.type.search('touch') === 0 ? e.changedTouches[0] : e;
+    const diffPos = this.#state.swipeX - event.clientX;
+    if (diffPos > 50) {
+      this.#state.direction = 'next';
+      this.#move();
+    } else if (diffPos < -50) {
+      this.#state.direction = 'prev';
+      this.#move();
+    }
+    this.#state.isSwiping = false;
+    if (this.#config.loop) {
+      this.#autoplay();
+    }
+  }
+
+  #onTransitionStart() {
+    if (this.#state.isBalancing) {
+      return;
+    }
+    this.#state.isBalancing = true;
+    window.requestAnimationFrame(this.#balanceItems.bind(this));
+  }
+
+  #onTransitionEnd() {
+    this.#state.isBalancing = false;
+  }
+
+  #onDragStart(e) {
+    e.preventDefault();
+  }
+
+  #onVisibilityChange() {
+    if (document.visibilityState === 'hidden') {
+      this.#autoplay('stop');
+    } else if (document.visibilityState === 'visible' && this.#config.loop) {
+      this.#autoplay();
+    }
+  }
+
+  #attachEvents() {
+    this.#state.events = {
+      'click': [this.#state.el, this.#onClick.bind(this), true],
+      'mouseenter': [this.#state.el, this.#onMouseEnter.bind(this), true],
+      'mouseleave': [this.#state.el, this.#onMouseLeave.bind(this), true],
+      'resize': [window, this.#onResize.bind(this), this.#config.refresh],
+      'itc-slider__transition-start': [this.#state.elItems, this.#onTransitionStart.bind(this), this.#config.loop],
+      'transitionend': [this.#state.elItems, this.#onTransitionEnd.bind(this), this.#config.loop],
+      'touchstart': [this.#state.el, this.#onSwipeStart.bind(this), this.#config.swipe],
+      'mousedown': [this.#state.el, this.#onSwipeStart.bind(this), this.#config.swipe],
+      'touchend': [document, this.#onSwipeEnd.bind(this), this.#config.swipe],
+      'mouseup': [document, this.#onSwipeEnd.bind(this), this.#config.swipe],
+      'dragstart': [this.#state.el, this.#onDragStart.bind(this), true],
+      'visibilitychange': [document, this.#onVisibilityChange.bind(this), true]
+    };
+    Object.keys(this.#state.events).forEach((type) => {
+      if (this.#state.events[type][2]) {
+        const el = this.#state.events[type][0];
+        const fn = this.#state.events[type][1];
+        el.addEventListener(type, fn);
+      }
+    });
+  }
+
+  #detachEvents() {
+    Object.keys(this.#state.events).forEach((type) => {
+      if (this.#state.events[type][2]) {
+        const el = this.#state.events[type][0];
+        const fn = this.#state.events[type][1];
+        el.removeEventListener(type, fn);
+      }
+    });
+  }
+
+  #autoplay(action) {
+    if (!this.#config.autoplay) {
+      return;
+    }
+    if (action === 'stop') {
+      clearInterval(this.#state.intervalId);
+      this.#state.intervalId = null;
+      return;
+    }
+    if (this.#state.intervalId === null) {
+      this.#state.intervalId = setInterval(() => {
+        this.#state.direction = 'next';
+        this.#move();
+      }, this.#config.interval);
+    }
+  }
+
+  #balanceItems() {
+    if (!this.#state.isBalancing) {
+      return;
+    }
+    const wrapperRect = this.#state.elWrapper.getBoundingClientRect();
+    const targetWidth = wrapperRect.width / this.#state.countActiveItems / 2;
+    const countItems = this.#state.elListItem.length;
+    if (this.#state.direction === 'next') {
+      const exItemRectRight = this.#state.exItemMin.getBoundingClientRect().right;
+      if (exItemRectRight < wrapperRect.left - targetWidth) {
+        const elFound = this.#state.els.find((item) => item.el === this.#state.exItemMin);
+        elFound.order = this.#state.exOrderMin + countItems;
+        const translate = this.#state.exTranslateMin + countItems * this.#state.width;
+        elFound.translate = translate;
+        this.#state.exItemMin.style.transform = `translate3D(${translate}px, 0px, 0.1px)`;
+        this.#updateExProperties();
+      }
+    } else {
+      const exItemRectLeft = this.#state.exItemMax.getBoundingClientRect().left;
+      if (exItemRectLeft > wrapperRect.right + targetWidth) {
+        const elFound = this.#state.els.find((item) => item.el === this.#state.exItemMax);
+        elFound.order = this.#state.exOrderMax - countItems;
+        const translate = this.#state.exTranslateMax - countItems * this.#state.width;
+        elFound.translate = translate;
+        this.#state.exItemMax.style.transform = `translate3D(${translate}px, 0px, 0.1px)`;
+        this.#updateExProperties();
+      }
+    }
+    window.requestAnimationFrame(this.#balanceItems.bind(this));
+  }
+
+  #updateClasses() {
+    const activeClass = this.#state.prefix + this.constructor.#EL_ITEM_ACTIVE;
+    this.#state.activeItems.forEach((item, index) => {
+      if (item) {
+        this.#state.elListItem[index].classList.add(activeClass);
+      } else {
+        this.#state.elListItem[index].classList.remove(activeClass);
+      }
+      const elListIndicators = this.#state.el.querySelectorAll(`.${this.#state.prefix}${this.constructor.#EL_INDICATOR}`);
+      if (elListIndicators.length && item) {
+        elListIndicators[index].classList.add(`${this.#state.prefix}${this.constructor.#EL_INDICATOR_ACTIVE}`);
+      } else if (elListIndicators.length && !item) {
+        elListIndicators[index].classList.remove(`${this.#state.prefix}${this.constructor.#EL_INDICATOR_ACTIVE}`);
+      }
+    });
+  }
+
+  #move() {
+    const widthItem = this.#state.direction === 'next' ? -this.#state.width : this.#state.width;
+    const transform = this.#state.translate + widthItem;
+    if (!this.#config.loop) {
+      const limit = this.#state.width * (this.#state.elListItem.length - this.#state.countActiveItems);
+      if (transform < -limit || transform > 0) {
+        return;
+      }
+      if (this.#state.btnPrev) {
+        this.#state.btnPrev.classList.remove(this.#state.btnClassHide);
+        this.#state.btnNext.classList.remove(this.#state.btnClassHide);
+      }
+      if (this.#state.btnPrev && transform === -limit) {
+        this.#state.btnNext.classList.add(this.#state.btnClassHide);
+      } else if (this.#state.btnPrev && transform === 0) {
+        this.#state.btnPrev.classList.add(this.#state.btnClassHide);
+      }
+    }
+    if (this.#state.direction === 'next') {
+      this.#state.activeItems = [...this.#state.activeItems.slice(-1), ...this.#state.activeItems.slice(0, -1)];
+    } else {
+      this.#state.activeItems = [...this.#state.activeItems.slice(1), ...this.#state.activeItems.slice(0, 1)];
+    }
+    this.#updateClasses();
+    this.#state.translate = transform;
+    this.#state.elItems.style.transform = `translate3D(${transform}px, 0px, 0.1px)`;
+    this.#state.elItems.dispatchEvent(new CustomEvent('itc-slider__transition-start', {
+      bubbles: true
+    }));
+  }
+
+  #moveTo(index) {
+    const delta = this.#state.activeItems.reduce((acc, current, currentIndex) => {
+      const diff = current ? index - currentIndex : acc;
+      return Math.abs(diff) < Math.abs(acc) ? diff : acc;
+    }, this.#state.activeItems.length);
+    if (delta !== 0) {
+      this.#state.direction = delta > 0 ? 'next' : 'prev';
+      for (let i = 0; i < Math.abs(delta); i++) {
+        this.#move();
+      }
+    }
+  }
+
+  // приватный метод для выполнения первичной иницианализации
+  #init() {
+    // состояние элементов
+    this.#state.els = [];
+    // текущее значение translate
+    this.#state.translate = 0;
+    // позиции активных элементов
+    this.#state.activeItems = [];
+    // состояние элементов
+    this.#state.isBalancing = false;
+    // ширина одного слайда
+    this.#state.width = this.#state.elListItem[0].getBoundingClientRect().width;
+    // ширина #EL_WRAPPER
+    const widthWrapper = this.#state.elWrapper.getBoundingClientRect().width;
+    // количество активных элементов
+    this.#state.countActiveItems = Math.round(widthWrapper / this.#state.width);
+    this.#state.elListItem.forEach((el, index) => {
+      el.style.transform = '';
+      this.#state.activeItems.push(index < this.#state.countActiveItems ? 1 : 0);
+      this.#state.els.push({ el, index, order: index, translate: 0 });
+    });
+    if (this.#config.loop) {
+      const lastIndex = this.#state.elListItem.length - 1;
+      const translate = -(lastIndex + 1) * this.#state.width;
+      this.#state.elListItem[lastIndex].style.transform = `translate3D(${translate}px, 0px, 0.1px)`;
+      this.#state.els[lastIndex].order = -1;
+      this.#state.els[lastIndex].translate = translate;
+      this.#updateExProperties();
+    } else if (this.#state.btnPrev) {
+      this.#state.btnPrev.classList.add(this.#state.btnClassHide);
+    }
+    this.#updateClasses();
+    this.#autoplay();
+  }
+
+  #reset() {
+    const transitionNoneClass = this.#state.prefix + this.constructor.#TRANSITION_NONE;
+    const widthItem = this.#state.elListItem[0].getBoundingClientRect().width;
+    const widthWrapper = this.#state.elWrapper.getBoundingClientRect().width;
+    const countActiveEls = Math.round(widthWrapper / widthItem);
+    if (widthItem === this.#state.width && countActiveEls === this.#state.countActiveItems) {
+      return;
+    }
+    this.#autoplay('stop');
+    this.#state.elItems.classList.add(transitionNoneClass);
+    this.#state.elItems.style.transform = 'translate3D(0px, 0px, 0.1px)';
+    this.#init();
+    window.requestAnimationFrame(() => {
+      this.#state.elItems.classList.remove(transitionNoneClass);
+    });
+  }
+
+  #updateExProperties() {
+    const els = this.#state.els.map((item) => item.el);
+    const orders = this.#state.els.map((item) => item.order);
+    this.#state.exOrderMin = Math.min(...orders);
+    this.#state.exOrderMax = Math.max(...orders);
+    const min = orders.indexOf(this.#state.exOrderMin);
+    const max = orders.indexOf(this.#state.exOrderMax);
+    this.#state.exItemMin = els[min];
+    this.#state.exItemMax = els[max];
+    this.#state.exTranslateMin = this.#state.els[min].translate;
+    this.#state.exTranslateMax = this.#state.els[max].translate;
+  }
+}
+
+// setInterval(() => {
+    // coursesSlider.createInstances();
+// }, 2000) 
+
+coursesSlider.createInstances();
+
+</script>
+</html>
+
