@@ -33,8 +33,11 @@ _courses = [];
 for (course in _newCourses) {
     _course = {};
     _course.name = ""+ course.name;
-    _course.descr = "Lorem ipsum dolor sit, amet consectetur adipisicing elit. Ullam iusto quos commodi expedita inventore aliquid. Lorem ipsum dolor sit, amet consectetur adipisicing elit. Ullam iusto quos commodi expedita inventore aliquid.";
+    // _obj.phone_number = String(_request_te.custom_elems.ObtainChildByKey("f_plws").value);
+    // _course.descr = course.desc.ObtainChildByKey("desc").value;
     _course.url = "_wt/" + course.id;
+    _course.descr = course.desc ? course.desc : "";
+
     _course.imgURL = course.resource_id ? "/download_file.html?file_id=" + course.resource_id : "";
     _courses.push(_course)
 }
