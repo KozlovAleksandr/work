@@ -28,17 +28,17 @@ _experience = experience(personTE.hire_date);
 
 
 
-_newCourses = ArraySelectAll(XQuery("for $elem in courses where $elem/role_id=7186981296528563104 return $elem"));
+_newCourses = ArraySelectAll(XQuery("for $elem in courses where doc-contains($elem/id,'wt_data','[showCU=true]') return $elem"));
+
 _courses = [];
 for (course in _newCourses) {
     _course = {};
-    _course.name = ""+ course.name;
-    // _obj.phone_number = String(_request_te.custom_elems.ObtainChildByKey("f_plws").value);
-    // _course.descr = course.desc.ObtainChildByKey("desc").value;
-    _course.url = "_wt/" + course.id;
-    _course.descr = course.desc ? course.desc : "";
-
-    _course.imgURL = course.resource_id ? "/download_file.html?file_id=" + course.resource_id : "";
+    _courseDOC = tools.open_doc(course.id);
+    _courseTE = _courseDOC.TopElem;
+    _course.name = ""+ _courseTE.name;
+    _course.url = "_wt/" + _courseTE.id;
+    _course.descr = ""+ _courseTE.desc;
+    _course.imgURL = _courseTE.resource_id ? "/download_file.html?file_id=" + _courseTE.resource_id : "";
     _courses.push(_course)
 }
 

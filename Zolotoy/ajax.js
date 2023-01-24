@@ -1,37 +1,54 @@
 <script>
 function getTasks(searchParam) {
-	sStatusID = searchParam === "future" ? searchParam : "";
-	console.log(sStatusID)
-	$.ajax({
-		type: "POST",
-		url: "/pp/Ext5/extjs_json_collection_data.html",
-		dataType: "json",
-		data:   {
-					"collection_code" : "GetToDo",
-					"parameters" : `iDaysToShow=365;sStatus=${sStatusID};bShowCourses=true;bShowTests=true;bShowEventConfirmation=true`,
-				},
-		success: function (data) {
-			result = data.results;
-			console.log("RESULT2_", result);
-			printTasks(result);
-		},
-	})
+	sStatusID = searchParam != undefined ? searchParam : "all";
+  console.log("sStatusID: " + sStatusID)
+
+  resulr = [];
+  if (sStatusID === "completed") {
+    $.ajax({
+      type: "POST",
+      url: "/pp/Ext5/extjs_json_collection_data.html",
+      dataType: "json",
+      data:   {
+            "collection_code" : "zolotoy_completedEvents",
+            "parameters" : "userid=" + WTLP.sObjectId,
+          },
+      success: function (data) {
+        result = data.results;
+        printTasks(result);
+      },
+    })
+  } else {
+    $.ajax({
+      type: "POST",
+      url: "/pp/Ext5/extjs_json_collection_data.html",
+      dataType: "json",
+      data:   {
+            "collection_code" : "GetToDo",
+            "parameters" : `iDaysToShow=365;sStatus=${sStatusID};bShowCourses=true;iCoursesCriticalDaysCount=3;bShowTests=true;iTestsCriticalDaysCount=3;bShowEventConfirmation=true`,
+          },
+      success: function (data) {
+        result = data.results;
+        printTasks(result);
+      },
+    })
+  }
 }
 
-function printTasks(tasksArray) {
+function printTasks(tasksArray, status) {
 	$("tbody").empty();
-	for (i in tasksArray) {
-		$("tbody")
-			.append($(`
-				<tr>
-					<th scope="row">${tasksArray[i].name}</th>
-					<td>${tasksArray[i].state}</td>
-					<td>${tasksArray[i].strDate}</td>
-					<td>${tasksArray[i].type_name}</td>
-				</tr>
-			`))
-		;
-	}
+  for (i in tasksArray) {
+    $(".scroll_table tbody")
+      .append($(`
+        <tr>
+          <th scope="row">${tasksArray[i].name}</th>
+          <td>${tasksArray[i].state}</td>
+          <td>${tasksArray[i].strDate}</td>
+          <td>${tasksArray[i].type_name}</td>
+        </tr>
+      `))
+    ;
+  }
 }
 
 function getNews() {
@@ -46,7 +63,6 @@ function getNews() {
 				},
 		success: function (data) {
 			result = data.results;
-			console.log("RESULT3", result);
 			$(".slider__items").css("width", `${result.length * 346.66}`)
 			for (i in result) {
 				$(".itc-slider-2 .itc-slider__items")
@@ -68,8 +84,6 @@ function getNews() {
 }
 
 function fnLoadData() {
-	console.log(WTLP.sObjectId);
-
 	$.ajax({
 		type: "POST",
 		url: "/pp/Ext5/extjs_json_collection_data.html",
@@ -81,7 +95,6 @@ function fnLoadData() {
 				},
 		success: function (data) {
 			result = data.results[0];
-			console.log("RESULT1", result);
 			avatarUrl = result.avatar;
 			$(".avatar").attr("src", avatarUrl);
 
@@ -89,7 +102,6 @@ function fnLoadData() {
 			$(".top-block__left-position").text(result.position);
 			$(".experience").text(result.experience);
 			$(".new-courses_slider").css("width", `${result.newCourses.length * 518}`)
-			console.log("RESULT4", result.newCourses)
 			if (result.newCourses.length > 0) {
 				if (result.newCourses.length < 3) {
 					$(".itc-slider itc-slider-1").attr("data-autoplay", 'false');
@@ -146,18 +158,16 @@ function fnLoadData() {
 
 	getTasks()
 
-	$(".current_tasks").click(function() {
-		getTasks("current")
-	});
-	$(".coming_tasks").click(function() {
-		getTasks("future")
-	});
+  $(".my-tasks-button-block button").click(function(e) {
+    e.preventDefault();
+    $(".my-tasks-button-block button").removeClass('active');
+    $(this).addClass('active');
+    attr = $(this).attr("id");
+    getTasks(attr);
+  });
 
-	$(".completed_tasks").click(function() {
-		getTasks("")
-	});
 
-	getNews()
+	// getNews()
 }		
 
 
@@ -256,7 +266,6 @@ class ItcSlider {
 //   }
 
   static createInstances(dataAttr) {
-	console.log(dataAttr)
 	const sliderElem = document.querySelectorAll(`[data-slider="${dataAttr}"]`)[0];
 	const dataset = sliderElem.dataset;
     const params = {};
